@@ -1,12 +1,12 @@
 
 === TOP VARIABLE COMBINATIONS ===
 Showing top 1 combinations:
-1. Combo: b'Uncorrected Radius': Test MAE SF = 0.1198, Test R2 = 0.6231
+1. Combo: b'Uncorrected Radius': Test MAE SF = 0.1454, Test R2 = 0.4590
 
 === BEST VARIABLE COMBINATION ===
 Combo: b'Uncorrected Radius'
-Best SF Test MAE: 0.1198
-Corresponding R2: 0.6231
+Best SF Test MAE: 0.1454
+Corresponding R2: 0.4590
 
 === PERFORMANCE METRICS FOR BEST COMBINATION===
 
@@ -26,7 +26,7 @@ Absolute Relative Error: 32.691%
 
 --- Corrected OCI After Regression ---
 Count: 975964
-RMSE: 4.309517
-Mean Absolute Error: 3.256880
-Bias: -0.227049
-Absolute Relative Error: 35.905%
+RMSE: 4.461462
+Mean Absolute Error: 3.414269
+Bias: -0.260619
+Absolute Relative Error: 37.953%

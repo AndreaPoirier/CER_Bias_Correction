@@ -40,8 +40,8 @@ with h5py.File(output_file, 'w') as f:
         "lat_centers", "lon_centers", "chi", "sf", 
         "rad_uncorrected", "sza",
         "lat_harp2", "lon_harp2", "rad_harp2",
-        "cloud_coverage",      # already added
-        "cot"                  # <<< NEW — COT stored
+        "cloud_coverage",      
+        "cot"                 
     ]:
         f.create_dataset(name, shape=(0,), maxshape=(None,), dtype='float32',
                          chunks=(10000,), compression='gzip')
@@ -66,11 +66,11 @@ print("========================================================================"
 print("MODIS dates:", {int(d) for d in set(date_MODIS)})
 print("HARP2 dates:", {int(d) for d in set(date_HARP2)})
 print("========================================================================")
-print(f"Saving MODIS data to {output_file}")
-print(f"Saving HARP2 data to {output_file}")
+print(f"Saving MODIS processed data to {output_file}")
+print(f"Saving HARP2 processed data to {output_file}")
 print("========================================================================")
-print(f"Box width: {half * 2}")
-print(f"Block size {block_size}")
+print(f"Box width: {half * 2} degrees")
+print(f"Block size {block_size:,} points")
 print(f"Saving every {save_every_n_blocks} blocks")
 print("========================================================================")
 
@@ -240,6 +240,6 @@ for b in tqdm(range(num_blocks), desc="Global blocks"):
 
     if (b + 1) % save_every_n_blocks == 0 or (b + 1) == num_blocks:
         save_buffer_to_disk()
-        print(f"Saved {total_saved:,} results so far...")
+        print(f" Saved {total_saved:,} results so far...")
 
 print(f"\nGlobal processing complete — {total_saved:,} results saved to: {output_file}")

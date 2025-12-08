@@ -16,7 +16,7 @@ HARP2_h5 = h5py.File(HARP2_path, "r")
 # Loading OCI data
 lat_OCI_d = OCI_h5["lat"]
 lon_OCI_d = OCI_h5["lon"]
-rad_OCI_d = OCI_h5["cer_16"]
+rad_OCI_d = OCI_h5["radius"]
 cot_OCI_d = OCI_h5["cot"]
 sza_OCI_d = OCI_h5["sza"]
 cloud_coverage_d = OCI_h5["cloud_coverage"]

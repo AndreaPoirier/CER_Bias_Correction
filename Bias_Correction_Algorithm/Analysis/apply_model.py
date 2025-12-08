@@ -26,6 +26,8 @@ with h5py.File(processed_data_file, 'r') as f:
     lat_HARP2 = f['lat_HARP2'][:]
     chi_list = f['chi'][:]
 
+
+
 # Define variables to be tried in the regression
 variables = [rad_uncorrected_list, sza_list, chi_list, cloud_coverage, cot]
 variables_names = ["Uncorrected Radius", "SZA","Chi","Cloud Coverage","COT"]
@@ -33,7 +35,7 @@ variables_names = ["Uncorrected Radius", "SZA","Chi","Cloud Coverage","COT"]
 variables = [np.array(v) for v in variables]
 sf = np.array(sf_list)
 X_all = np.column_stack(variables)
-
+print(rad_uncorrected_list[rad_uncorrected_list > 30])
 ########################################
 ##### Apply Model to Test Region #######
 ########################################
@@ -52,7 +54,6 @@ rad_OCI_after_regression = X_all[:, 0] * sf_pred
 rad_OCI_before_regression = X_all[:, 0] * sf
 lat_OCI_test = lat_centers
 lon_OCI_test = lon_centers
-
 
 ######################################
 ##### PLOT region CDF and Histo ######

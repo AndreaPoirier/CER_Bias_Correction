@@ -20,8 +20,8 @@ folder_path_HARP2 = r"C:\Users\andreap\Documents\python_projects\Data\HARP2\PACE
 folder_path_cloud_mask = r"C:\Users\andreap\Documents\python_projects\Data\OCI\Cloud_mask\PACE_OCI_L2_CLOUD_MASK_3.1-20251030_081441"
 # Path to store results from get_processed_data.py
 #folder_path_saved_processed_data = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\World_Month_6"
-#folder_path_saved_processed_data = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\Small"
-folder_path_saved_processed_data = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\World_data"
+folder_path_saved_processed_data = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\Small"
+#folder_path_saved_processed_data = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\World_data"
 ########## Definition of Area of Interest #########
 folder_output = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Output\Regression_with_Cloud_Coverage"
 
@@ -64,30 +64,18 @@ start_day = '20250807'  # Format: 'YYYYMMDD'
 
 ########## Analysis Options ##########
 
-# Include Lorg and OII parameters in analysis
-# WARNING: Setting this to True can drastically increase runtime
-use_Lorg_and_OII = False
-
 # Box width (in degrees) used for:
 # - chi computation (cloud homogeneity)
 # - Scaling factor from quantile mapping
 box_width_for_chi_and_SF_computation = 0.5
 
-# Box width (in degrees) used for:
-# - Lorg and OII computation
-box_width_for_Lorg_and_OII_computation = 0.25
-
 # Min number of points required to perform quantile mapping 
 min_neighbors = 30
 
-# Run code under Option 1 or Option 2 (see manual)
-get_data_from_files = False
 
 # Fraction of files used from folder path OCI
-sample_fraction_files = 1
+sample_fraction_files = 0.06
 
-# Fraction of data outputted from get_processed_data.py
-sample_fraction_get_processed_data_py = 0.99
 
 # Process this many points at once
 block_size = 100_000  

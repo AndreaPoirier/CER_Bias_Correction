@@ -119,7 +119,6 @@ with h5py.File(h5_path, "w") as hf:
         lat         = lat[:min_rows, :min_cols]
         lon         = lon[:min_rows, :min_cols]
         cloud_flag  = cloud_flag[:min_rows, :min_cols]
-
         # ----------------------------------------------
         # FILTER INVALID PIXELS
         # ----------------------------------------------
@@ -144,7 +143,7 @@ with h5py.File(h5_path, "w") as hf:
         ])
         mask |= discontinuity
 
-        valid = ~mask
+        valid = ~mask & (cloud_flag == 1)
 
         # ----------------------------------------------
         # COMPUTE CLOUD COVERAGE (same method as OCI)
@@ -152,6 +151,7 @@ with h5py.File(h5_path, "w") as hf:
         lat_valid = lat[valid]
         lon_valid = lon[valid]
         cloud_valid = cloud_flag[valid]
+        
 
         cloud_count, _, _ = np.histogram2d(lat_valid, lon_valid,
                                            bins=[lat_bins, lon_bins],
