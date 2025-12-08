@@ -1,0 +1,32 @@
+
+=== TOP VARIABLE COMBINATIONS ===
+Showing top 1 combinations:
+1. Combo: b'Uncorrected Radius, Chi, SZA': Test MAE SF = 0.1350, Test R2 = 0.4033
+
+=== BEST VARIABLE COMBINATION ===
+Combo: b'Uncorrected Radius, Chi, SZA'
+Best SF Test MAE: 0.1350
+Corresponding R2: 0.4033
+
+=== PERFORMANCE METRICS FOR BEST COMBINATION===
+
+--- Uncorrected OCI data ---
+Count: 901753
+RMSE: 7.557752
+Mean Absolute Error: 5.855415
+Bias: 4.422899
+Absolute Relative Error: 72.817%
+
+--- Corrected OCI Before Regression ---
+Count: 901753
+RMSE: 4.263839
+Mean Absolute Error: 3.038520
+Bias: -0.106939
+Absolute Relative Error: 32.714%
+
+--- Corrected OCI After Regression ---
+Count: 901753
+RMSE: 4.384291
+Mean Absolute Error: 3.323789
+Bias: -0.033087
+Absolute Relative Error: 37.403%

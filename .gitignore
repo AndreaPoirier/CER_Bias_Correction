@@ -3,7 +3,7 @@
 
 # Ignore processed data
 Bias_Correction_Algorithm/Data_Processing/Processed_Data
-Bias_Correction_Algorithm/Output
+
 # 
 *.h5
 
@@ -11,3 +11,4 @@ Bias_Correction_Algorithm/Output
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.vscode/
