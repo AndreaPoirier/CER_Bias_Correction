@@ -2,7 +2,9 @@
 !.gitignore
 
 # Ignore processed data
-Bias_Correction_Algorithm\output
+Bias_Correction_Algorithm\output\processed_data
+Bias_Correction_Algorithm\output\regression
+Bias_Correction_Algorithm\output\validation
 # 
 *.h5
 
