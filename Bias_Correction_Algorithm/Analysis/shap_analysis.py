@@ -1,9 +1,9 @@
-import os, sys
+import os, sys, random, gc
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Utilities.user_input import *
-from Utilities.Functions.functions_data_processing import *
-from Utilities.Functions.functions_plot import *
-from Utilities.Functions.functions_statistics import *
+from utilities.user_input import *
+from utilities.processing import *
+from utilities.plotting import *
+from utilities.statistics import *
 from import_lib import *
 
 
@@ -11,7 +11,7 @@ from import_lib import *
 print("Loading train data and model\n")
 
 # Loading train data
-train_data_file = os.path.join(folder_output, "train_data.h5")
+train_data_file = folder_output + "\train_data.h5"
 with h5py.File(train_data_file, "r") as f:
     X_train = f["X_train"][:]
 
@@ -21,12 +21,17 @@ model_file = os.path.join(folder_output, "model.txt")
 model = lgb.Booster(model_file=model_file)
 
 # Sampling data to 1,000,000 points
-idx = np.random.choice(X_train.shape[0], 100000, replace=False)
-X_train = X_train[idx]
-print("The shape of the train data matrix is ", X_train.shape)
+n_data = 1_000_000
+if X_train.shape[0] > n_data:
+    print("The shape of the train data matrix is ", X_train.shape)
+    idx = np.random.choice(X_train.shape[0], n_data, replace=False)
+    X_train = X_train[idx]
+    print("The shape of the train data matrix is ", X_train.shape)
+else:
+    print("No sampling.")
 
 # Loading features names
-results_file = os.path.join(folder_output, "regression_results.h5")
+results_file = os.path.join(folder_output, "regression_results8.h5")
 with h5py.File(results_file, "r") as f:
     feature_list = list(f["names"].asstr()[:])
     r2_all = f["r2_test"][:]

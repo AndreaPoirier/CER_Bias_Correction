@@ -1,10 +1,12 @@
-import os, sys
+import os, sys, random, gc
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Utilities.user_input import *
-from Utilities.Functions.functions_data_processing import *
-from Utilities.Functions.functions_plot import *
-from Utilities.Functions.functions_statistics import *
+from utilities.user_input import *
+from utilities.processing import *
+from utilities.plotting import *
+from utilities.statistics import *
 from import_lib import *
+
+
 
 ##################################
 ########## LOADING DATA ##########

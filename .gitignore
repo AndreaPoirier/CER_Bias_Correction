@@ -2,8 +2,7 @@
 !.gitignore
 
 # Ignore processed data
-Bias_Correction_Algorithm/Data_Processing/Processed_Data
-
+Bias_Correction_Algorithm\output
 # 
 *.h5
 

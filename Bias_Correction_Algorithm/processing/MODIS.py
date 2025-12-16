@@ -1,10 +1,9 @@
-import os, sys, gc
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..',))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-from Utilities.user_input import *
-from Utilities.Functions.functions_data_processing import *
-from Utilities.Functions.functions_statistics import *
+import os, sys, random, gc
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utilities.user_input import *
+from utilities.processing import *
+from utilities.plotting import *
+from utilities.statistics import *
 from import_lib import *
 
 
