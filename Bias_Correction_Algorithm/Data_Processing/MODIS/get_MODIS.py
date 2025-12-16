@@ -1,4 +1,4 @@
-import os, sys, gc
+import os, sys, gc, random
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -12,10 +12,31 @@ from import_lib import *
 # -----------------------------
 # USER SETTINGS
 # -----------------------------
-folder_path_MODIS = r"D:\Data\MODIS\MYD06_L2_6.1-20251127_132549"
-h5_path = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\Small\MODIS_data.h5"
 
-print("Starting MODIS processing including cloud coverage...")
+h5_path = os.path.join(folder_path_saved_processed_data, "MODIS_data.h5")
+variables_to_save = ["radius", "cot", "sza", "lat", "lon", "cloud_coverage"]
+all_files = [f for f in os.listdir(folder_path_MODIS) if f.endswith(".hdf")]
+n_total = len(all_files)
+
+# Printing of parameters 
+print("==== GETTING MODIS DATA LOCALLY ====")
+print(f"Loading data from {folder_path_MODIS}")
+print(f"Saving MODIS data to {folder_path_saved_processed_data}\MODIS_data.h5")
+print("========================================================================")
+print(f"Using (sampling) {sample_fraction_files * 100} % of total MODIS files")
+print(f"Number of files {n_total}")
+print("========================================================================")
+if world_data:
+    print("Getting data for the world")
+else:
+    print(f"Region box: "f"lat_min: {lat_min:.2f} | "f"lat_max: {lat_max:.2f} | "f"lon_min: {lon_min:.2f} | "f"lon_max: {lon_max:.2f}")
+print(f"Variables saved {variables_to_save}")
+print("========================================================================")
+
+# Giving option to user to run or not the code
+starting_code()
+
+
 
 # -----------------------------
 # CREATE OUTPUT HDF5
@@ -39,7 +60,15 @@ with h5py.File(h5_path, "w") as hf:
     n_total = len(all_files)
     n_runs = 0
 
-    print(f"Found {n_total} MODIS files.")
+    # FILE SAMPLING
+    if sample_fraction_files == 1:
+        print("Using all files (no sampling).")
+    else:
+        random.seed(42)
+        n_sample = max(1, int(n_total * sample_fraction_files))
+        all_files = random.sample(all_files, k=n_sample)
+        print(f"Using {n_sample} of {n_total} files ({n_sample/n_total:.1%})")
+
 
     # -----------------------------------------
     # DEFINE CLOUD COVERAGE GRID

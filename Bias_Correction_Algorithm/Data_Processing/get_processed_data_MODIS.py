@@ -49,10 +49,9 @@ with h5py.File(output_file, 'w') as f:
     f.create_dataset("lat_HARP2", data=lat_HARP2_dset[:], dtype='float32', compression='gzip')
     f.create_dataset("lon_HARP2", data=lon_HARP2_dset[:], dtype='float32', compression='gzip')
     f.create_dataset("rad_HARP2", data=rad_HARP2_dset[:], dtype='float32', compression='gzip')
+    dt = h5py.string_dtype(encoding='utf-8')
+    f.create_dataset('Instrument_to_correct', data='MODIS', dtype=dt)
 
-# Tunable parameters 
-half = box_width_for_chi_and_SF_computation / 2
-diag = np.sqrt(2) * half
 
 #Printing parameters
 print("===== PROCESSING DATA ======")
@@ -70,7 +69,7 @@ print(f"Saving MODIS processed data to {output_file}")
 print(f"Saving HARP2 processed data to {output_file}")
 print("========================================================================")
 print(f"Box width: {half * 2} degrees")
-print(f"Block size {block_size:,} points")
+print(f"Block size {MODIS_chunk_size:,} points")
 print(f"Saving every {save_every_n_blocks} blocks")
 print("========================================================================")
 
@@ -138,12 +137,12 @@ gc.collect()
 # GLOBAL PROCESSING
 # ===================================================
 N = len(lat_MODIS)
-num_blocks = int(np.ceil(N / block_size))
+num_blocks = int(np.ceil(N / MODIS_chunk_size))
 print(f"\nProcessing globally in {num_blocks} blocks...\n")
 total_saved = 0
 for b in tqdm(range(num_blocks), desc="Global blocks"):
-    start = b * block_size
-    end = min((b + 1) * block_size, N)
+    start = b * MODIS_chunk_size
+    end = min((b + 1) * MODIS_chunk_size, N)
 
     lat_block = lat_MODIS[start:end]
     lon_block = lon_MODIS[start:end]
@@ -164,7 +163,7 @@ for b in tqdm(range(num_blocks), desc="Global blocks"):
     lat_O = lat_MODIS[MODIS_indices]
     lon_O = lon_MODIS[MODIS_indices]
     rad_O = rad_MODIS[MODIS_indices]
-    cot_O = cot_MODIS[MODIS_indices]           # <<< NEW
+    cot_O = cot_MODIS[MODIS_indices]           
     cloud_O = cloud_MODIS[MODIS_indices]
 
     idx_map = {idx: i for i, idx in enumerate(MODIS_indices)}
@@ -193,13 +192,14 @@ for b in tqdm(range(num_blocks), desc="Global blocks"):
             continue
 
         MODIS_idx = MODIS_neighbors_list[i_local]
+
         if len(MODIS_idx) < min_neighbors:
             continue
 
         local_idx = [idx_map[k] for k in MODIS_idx]
 
         rad_O_all = rad_O[local_idx]
-        cot_O_all = cot_O[local_idx]      # <<< NEW
+        cot_O_all = cot_O[local_idx]      
         cloud_O_all = cloud_O[local_idx]
 
         mask_O = (
@@ -208,7 +208,7 @@ for b in tqdm(range(num_blocks), desc="Global blocks"):
         )
 
         rad_O_sel = rad_O_all[mask_O]
-        cot_O_sel = cot_O_all[mask_O]     # <<< NEW
+        cot_O_sel = cot_O_all[mask_O]    
         cloud_sel = cloud_O_all[mask_O]
 
         if len(rad_O_sel) < min_neighbors:
@@ -232,7 +232,7 @@ for b in tqdm(range(num_blocks), desc="Global blocks"):
         sza_buffer.append(sza_block[i_local])
 
         cloud_buffer.append(np.mean(cloud_sel))
-        cot_buffer.append(np.mean(cot_O_sel))   # <<< NEW — SAVE MEAN COT
+        cot_buffer.append(np.mean(cot_O_sel))   
 
         lat_H_buffer.append(lat_H_all[mask_H].mean())
         lon_H_buffer.append(lon_H_all[mask_H].mean())

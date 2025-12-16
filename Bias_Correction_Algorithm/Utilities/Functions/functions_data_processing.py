@@ -3,34 +3,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from import_lib import *
 
 
-def is_in_region(lat_granular, lon_granular, lat_min, lat_max, lon_min, lon_max):
-    '''
-    Checks if any part of the granular data overlaps with the region of interest. If it does, function returns True.
-
-    input
-        lat_granular lon_granular -->  array containing the coordinates for each data point for 1 granular
-        lat_min, lat_max, lon_min, lon_max --> float of the region of interest (rectangle shape)
-
-    output
-        lat_overlap, lon_overlap --> boolean 
-    '''
-    
-    lat_overlap = np.any((lat_granular >= lat_min) & (lat_granular <= lat_max))
-    lon_overlap = np.any((lon_granular >= lon_min) & (lon_granular <= lon_max))
-    return lat_overlap and lon_overlap
-
-
-
-def filter_region(lat, lon, val,lat_min,lon_min,lat_max,lon_max):
-    mask = (
-        (lat >= lat_min) & (lat <= lat_max) &
-        (lon >= lon_min) & (lon <= lon_max)
-    )
-    return lat[mask], lon[mask], val[mask]
-
-
-
-
 def is_within_n_days(filename, n, start_day):
     """
     Check if the file's date is within the first n days from the initial day.
@@ -136,7 +108,7 @@ def log_metrics(
         best_names, best_r2, best_mae = results_sorted[0]
         f.write("\n=== BEST VARIABLE COMBINATION ===\n")
         f.write(f"Combo: {best_names}\n")
-        f.write(f"Best SF Test MAE: {best_mae:.4f}\n")
+        f.write(f"Best Mean Absolute Error for the Scaling Factor (test data): {best_mae:.4f}\n")
         f.write(f"Corresponding R2: {best_r2:.4f}\n\n")
 
         f.write("=== PERFORMANCE METRICS FOR BEST COMBINATION===\n")
@@ -193,8 +165,31 @@ def removing_corrupted_files(base_folder):
     print("---------------------------")
 
 def starting_code():
-    user_input = input("Enter y to run file: ")
+    user_input = input("\n===== ENTER 'y' TO RUN FILE: ")
     if user_input.lower() != 'y':
         print("Stopping the program.")
         sys.exit() 
-    print("Code is running...")
+    print("\nCode is running...")
+
+def normalize_date_batch(dates):
+    if len(dates) == 0:
+        return np.array([])
+    if isinstance(dates[0], bytes):
+        return np.array([d.decode('utf-8') if isinstance(d, bytes) else str(d) for d in dates])
+    result = []
+    for d in dates:
+        try:
+            result.append(d.item() if hasattr(d, 'item') else str(d))
+        except:
+            result.append(str(d))
+    return np.array(result)
+
+def get_unique_days_stream(date_dataset, chunk=300_000):
+    uniq = set()
+    N = len(date_dataset)
+    for start in tqdm(range(0, N, chunk), desc=f"Scanning {date_dataset.name} for unique days", leave=False):
+        end = min(start + chunk, N)
+        block = date_dataset[start:end]
+        normalized = normalize_date_batch(block)
+        uniq.update(normalized)
+    return sorted(uniq)

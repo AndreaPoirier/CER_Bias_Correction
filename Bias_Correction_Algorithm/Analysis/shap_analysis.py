@@ -29,9 +29,10 @@ print("The shape of the train data matrix is ", X_train.shape)
 results_file = os.path.join(folder_output, "regression_results.h5")
 with h5py.File(results_file, "r") as f:
     feature_list = list(f["names"].asstr()[:])
-#################################
-#### CALCULATING SHAP VALUES #####
-##################################
+    r2_all = f["r2_test"][:]
+    best_mae = f.attrs["best_mae"]
+
+r2_max = np.max(r2_all)
 
 
 print("\nCalculating SHAP values with the following features\n")
@@ -47,9 +48,11 @@ shap_values = calculate_shap_with_progress(model, X_train, feature_names=feature
 print("\nPlotting Beeswarm plot")
 
 plt.figure(figsize=(12, 6))
-plt.title("Global Feature Importance (Physics Validation)", fontsize=16)
+plt.title(f"SHAP Analysis | MAE test = "f"{best_mae:.3f}"" | R2 test = "f"{r2_max:.3f}", fontsize=16)
+
 shap.plots.beeswarm(shap_values, show=False)
 plt.tight_layout()
+plt.savefig(r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Output\Validation\SHAP1.png")
 plt.show()
 
 

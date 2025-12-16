@@ -14,46 +14,60 @@ from import_lib import *
 processed_data_file = folder_path_saved_processed_data + '\processed_data.h5'
 
 with h5py.File(processed_data_file, 'r') as f:
-    lat_centers = f['lat_centers'][:]
-    lon_centers = f['lon_centers'][:]
+    # OCI/MODIS Data
+    lat = f['lat_centers'][:]
+    lon = f['lon_centers'][:]
     cloud_coverage = f['cloud_coverage'][:]
     cot = f['cot'][:]
-    sf_list = f['sf'][:]
-    rad_uncorrected_list = f['rad_uncorrected'][:]
-    sza_list = f['sza'][:]
+    sf = f['sf'][:]
+    cer_16_uncorrected = f['rad_uncorrected'][:]
+    sza = f['sza'][:]
+    instrument = f['Instrument_to_correct'][()].decode('utf-8')
+    chi = f['chi'][:]
+
+    # HARP2 data
     rad_HARP2 = f['rad_HARP2'][:]
     lon_HARP2 = f['lon_HARP2'][:]
     lat_HARP2 = f['lat_HARP2'][:]
-    chi_list = f['chi'][:]
 
 
+# Define features used in ML model
+features = [cer_16_uncorrected, sza, chi, cloud_coverage, cot]
+features_names = ["CER Uncorrected", "SZA","Chi","Cloud Coverage","COT"]
+# features = [np.array(v) for v in features]
+# sf = np.array(sf)
+X_all = np.column_stack(features)
 
-# Define variables to be tried in the regression
-variables = [rad_uncorrected_list, sza_list, chi_list, cloud_coverage, cot]
-variables_names = ["Uncorrected Radius", "SZA","Chi","Cloud Coverage","COT"]
-
-variables = [np.array(v) for v in variables]
-sf = np.array(sf_list)
-X_all = np.column_stack(variables)
-print(rad_uncorrected_list[rad_uncorrected_list > 30])
-########################################
+########################################y
 ##### Apply Model to Test Region #######
 ########################################
 
 
-folder_path = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Output\Regression_with_Cloud_Coverage" 
-os.makedirs(folder_path, exist_ok=True)  
-save_path = os.path.join(folder_path, "model.txt")  
+os.makedirs(folder_output, exist_ok=True)  
+save_path = os.path.join(folder_output, "model.txt")  
 loaded_model = lgb.Booster(model_file=save_path)
 
+
+
+print("===== APPLYING MODEL  ======")
+description_of_script = """This script takes the processed data from processed_data.h5 and applies a pre-trained ML model to it. 
+"""
+print(textwrap.fill(description_of_script, width=100))
+print("========================================================================")
+print(f"Loading {instrument} processed data from {processed_data_file}")
+print(f"Loading HARP2 (for comparison) data from {processed_data_file}")
+print(f"Loading trained model from {folder_output}")
+print("========================================================================")
+print(f"Region box: "f"lat_min: {lat.min():.2f} | "f"lat_max: {lat.max():.2f} | "f"lon_min: {lon.min():.2f} | "f"lon_max: {lon.max():.2f}")
+print("========================================================================")
+
+starting_code()
+
 sf_pred = loaded_model.predict(X_all)
+cer_before_qm = X_all[:, 0]
+cer_after_reg = X_all[:, 0] * sf_pred
+cer_before_reg = X_all[:, 0] * sf
 
-
-rad_OCI_before_qm = X_all[:, 0]
-rad_OCI_after_regression = X_all[:, 0] * sf_pred
-rad_OCI_before_regression = X_all[:, 0] * sf
-lat_OCI_test = lat_centers
-lon_OCI_test = lon_centers
 
 ######################################
 ##### PLOT region CDF and Histo ######
@@ -62,20 +76,20 @@ lon_OCI_test = lon_centers
 print("\n== Plotting the histogram and CDF ...")
 
 plot_multiple_histograms(
-        datasets=[rad_HARP2,rad_OCI_after_regression,rad_OCI_before_qm, rad_OCI_before_regression],
-        labels=['HARP2','MODIS After Regression','MODIS Before QM','MODIS Before Regression'],
+        datasets=[rad_HARP2,cer_after_reg,cer_before_qm, cer_before_reg],
+        labels = ['HARP2', f' {instrument} After Regression',f' {instrument} Before QM',f' {instrument} Before Regression'],   
         bins=100,
-        title='Quantile Mapping Corrected Histogram ',
+        title='Historgram of Cloud Effective Radius ',
         outline_only=True,
         show_stats=False,
         save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression"
     )
 
 plot_multiple_cdfs_with_p(
-    datasets=[rad_HARP2,rad_OCI_after_regression,rad_OCI_before_qm, rad_OCI_before_regression],
-    labels=['HARP2','MODIS After Regression','MODIS Before QM','MODIS Before Regression'],
+    datasets=[rad_HARP2,cer_after_reg,cer_before_qm, cer_before_reg],
+    labels = ['HARP2', f' {instrument} After Regression',f' {instrument} Before QM',f' {instrument} Before Regression'],   
     bins=100,
-    title='Quantile Mapping Corrected CDF',
+    title='CDF of Cloud Effective Radius',
     show_stats=False,
     save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression"
     )
@@ -90,15 +104,15 @@ print("\n== Computing comparison statistics ...\n")
 
 #Aggregate data
 agg_uncorr, counts_uncorr, mask_uncorr = aggregate_oci_to_harp2_radius(
-    lat_OCI_test, lon_OCI_test, rad_OCI_before_qm,
+    lat, lon, cer_before_qm,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 agg_corr, counts_corr, mask_corr = aggregate_oci_to_harp2_radius(
-    lat_OCI_test, lon_OCI_test, rad_OCI_after_regression,
+    lat, lon, cer_after_reg,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 agg_before_reg, counts_before_reg, mask_before_reg = aggregate_oci_to_harp2_radius(
-    lat_OCI_test, lon_OCI_test, rad_OCI_before_regression,
+    lat, lon, cer_before_reg,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 
@@ -111,9 +125,9 @@ paired_before_reg = agg_before_reg[valid_mask]
 
 
 
-count_uncorr, rmse_uncorr, mae_uncorr, bias_uncorr, aare_uncorr, error_uncorr = print_pair_stats(paired_harp, paired_uncorr, "Uncorrected OCI data")
-count_before_reg, rmse_before_reg, mae_before_reg, bias_before_reg, aare_before_reg, error_before_reg = print_pair_stats(paired_harp, paired_before_reg, "Corrected OCI Before Regression")
-count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_pair_stats(paired_harp, paired_corr, "Corrected OCI After Regression")
+count_uncorr, rmse_uncorr, mae_uncorr, bias_uncorr, aare_uncorr, error_uncorr = print_pair_stats(paired_harp, paired_uncorr, f"Uncorrected {instrument} data")
+count_before_reg, rmse_before_reg, mae_before_reg, bias_before_reg, aare_before_reg, error_before_reg = print_pair_stats(paired_harp, paired_before_reg, f"Corrected {instrument} Before Regression")
+count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_pair_stats(paired_harp, paired_corr, f"Corrected {instrument} After Regression")
 
 
 ################################################################
@@ -122,7 +136,7 @@ count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_p
 
 # Cloud inhomogeneity
 agg_chi, counts_chi, mask_chi= aggregate_oci_to_harp2_radius(
-    lat_OCI_test, lon_OCI_test, chi_list,
+    lat, lon, chi,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 agg_chi = agg_chi[valid_mask]
@@ -131,7 +145,7 @@ r_corr_chi, _   = pearsonr(agg_chi, error_after_reg)
 
 # Solar Zenith Angle
 agg_sza, counts_sza, mask_sza= aggregate_oci_to_harp2_radius(
-    lat_OCI_test, lon_OCI_test, sza_list,
+    lat, lon, sza,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 agg_sza = agg_sza[valid_mask]
@@ -200,7 +214,7 @@ lat_list = [lat_plot_uncorr, lat_plot_corr]
 radius_list = [diff_uncorr, diff_corr]
 
 pixel_sizes = [5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2)))), 5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2))))]  
-titles = ['Bias for Uncorrected MODIS', 'Bias for Corrected MODIS']
+titles = [f'Bias for Uncorrected {instrument}', f'Bias for Corrected {instrument}']
 
 plot_pixel_level(lon_list, 
                  lat_list, 
@@ -213,4 +227,4 @@ plot_pixel_level(lon_list,
                  lat_HARP2.max(),
                  save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression",
                  name = "Bias_uncorrected_and_corrected",
-                 bar_title = 'Absolute Difference in CER (um) for test data')
+                 bar_title = 'Absolute Difference in CER (um)')

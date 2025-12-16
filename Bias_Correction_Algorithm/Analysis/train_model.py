@@ -52,13 +52,14 @@ lon_OCI_test = lon_centers[test_idx]
 #######################################
 
 os.makedirs(folder_output, exist_ok=True)
-results_file = os.path.join(folder_output, "regression_results.h5")
+results_file = os.path.join(folder_output, "regression_results8.h5")
 with h5py.File(results_file, "w") as f:
     f.create_dataset("names", shape=(0,), maxshape=(None,), dtype=h5py.string_dtype())
     f.create_dataset("r2_test", shape=(0,), maxshape=(None,), dtype="f")
     f.create_dataset("mae_test", shape=(0,), maxshape=(None,), dtype="f")
     f.create_dataset("best_pred", shape=(0,), maxshape=(None,), dtype="f")
     f.attrs["best_mae"] = np.inf
+    f.attrs["best_rmse"] = 0
     f.attrs["best_combo"] = ""
 
 
@@ -88,7 +89,7 @@ for r in range(1, len(variables)+1):
 
         try:
             print(names)
-            model, y_pred_test, r2_train, r2_test, mae_test = scaling_factor_model_lgbm_train_test(
+            model, y_pred_test, r2_train, r2_test, mae_test, rmse_test = scaling_factor_model_lgbm_train_test(
                 X_train, y_train, X_test, y_test, iqr_k=5
             )
 
@@ -105,13 +106,14 @@ for r in range(1, len(variables)+1):
                 # Update best prediction if better MAE found
                 if mae_test < f.attrs["best_mae"]:
                     f.attrs["best_mae"] = mae_test
+                    f.attrs["best_rmse"] = rmse_test
                     f.attrs["best_combo"] = ", ".join(names)
                     f["best_pred"].resize(y_pred_test.shape)
                     f["best_pred"][:] = y_pred_test
 
                     # Saving model to be used later 
                     os.makedirs(folder_output, exist_ok=True)  
-                    save_path = os.path.join(folder_output, "model.txt")   
+                    save_path = os.path.join(folder_output, "model8.txt")   
                     model.save_model(save_path)
 
 
@@ -173,7 +175,7 @@ rad_OCI_before_regression = X_test_full[:, 0] * sf_test
 #####################################
 
 # Folder and file name
-filepath = os.path.join(folder_output, "train_data.h5")
+filepath = os.path.join(folder_output, "train_data8.h5")
 
 # Ensure folder exists
 os.makedirs(folder_output, exist_ok=True)

@@ -6,6 +6,11 @@ from Utilities.Functions.functions_statistics import *
 from import_lib import *
 
 
+
+################################
+#### LOADING PROCESSED DATA ####
+################################
+
 # Input files
 output_folder = folder_path_saved_processed_data
 OCI_path = os.path.join(output_folder, "OCI_data.h5")
@@ -16,7 +21,7 @@ HARP2_h5 = h5py.File(HARP2_path, "r")
 # Loading OCI data
 lat_OCI_d = OCI_h5["lat"]
 lon_OCI_d = OCI_h5["lon"]
-rad_OCI_d = OCI_h5["radius"]
+rad_OCI_d = OCI_h5["cer_16"]
 cot_OCI_d = OCI_h5["cot"]
 sza_OCI_d = OCI_h5["sza"]
 cloud_coverage_d = OCI_h5["cloud_coverage"]
@@ -34,7 +39,10 @@ date_H_d = HARP2_h5["date"]
 
 
 
-# Creating output .h5 file 
+##################################
+#### CREATING OUTPUT .h5 FILE ####
+##################################
+
 output_file = os.path.join(folder_path_saved_processed_data, "processed_data.h5")
 if os.path.exists(output_file):
     os.remove(output_file)
@@ -50,23 +58,22 @@ with h5py.File(output_file, "w") as f:
     f.create_dataset("lat_HARP2", data=lat_H_d[:].astype(np.float32), dtype='float32', compression='gzip')
     f.create_dataset("lon_HARP2", data=lon_H_d[:].astype(np.float32), dtype='float32', compression='gzip')
     f.create_dataset("rad_HARP2", data=rad_H_d[:].astype(np.float32), dtype='float32', compression='gzip')
+    
+    dt = h5py.string_dtype(encoding='utf-8')
+    f.create_dataset('Instrument_to_correct', data='OCI', dtype=dt)
 
 
-# Tunable parameters 
-oci_chunk_size = 300_000
-block_size = 30_000
-harp_chunk_size = 600_000
-overlap_rows = 0
-leafsize_for_kdtree = 100
-save_every_n_blocks = 2
-min_neighbors = globals().get("min_neighbors", 5)
-box_width_for_chi_and_SF_computation = globals().get("box_width_for_chi_and_SF_computation", 0.5)
-half = box_width_for_chi_and_SF_computation 
-diag = np.sqrt(2) * half
 
+######################################
+#### PRINT RUN CONFIGURATION #########
+######################################
 
-#Printing parameters
-print("===== PROCESSING DATA ======\n")
+print("\n===== PROCESSING DATA (get_processed_data.py) ======")
+description_of_script = """This script pre-processes the data by applying the Quantile Mapping method to the OCI data using HARP2 data. 
+It does so by dividing the data into days, such that only data from the same day is processed together. To avoid, memory issues the computation
+is performed chunk wise. Note that the run time may be long.
+"""
+print(textwrap.fill(description_of_script, width=100))
 print("========================================================================")
 print(f"Loading OCI data from {output_folder}\OCI_data.h5")
 print(f"Loading HARP2 data from {output_folder}\HARP2_data.h5")
@@ -74,25 +81,26 @@ print("========================================================================"
 print(f"OCI total points: {len(lat_OCI_d):,}")
 print(f"HARP2 total points: {len(lat_H_d):,}")
 print("========================================================================")
-# print("OCI dates:", {int(d) for d in set(date_OCI_d)})
-# print("HARP2 dates:", {int(d) for d in set(date_H_d)})
-print("========================================================================")
 print(f"Saving OCI processed data to {output_file}")
 print(f"Saving HARP2 processed data to {output_file}")
 print(f"Processed data that will be outputted {ds_names}")
 print("========================================================================")
-print(f"OCI and HARP2 block size {block_size:,}")
-print(f"OCI chunk size {oci_chunk_size:,}")
-print(f"HARP2 chunk size {harp_chunk_size:,}")
-print(f"Box width: {half * 2} degrees")
+print(f"OCI and HARP2 block size: {block_size:,}")
+print(f"OCI chunk size: {OCI_chunk_size:,}")
+print(f"HARP2 chunk size: {HARP2_chunk_size:,}")
+print(f"Box width: {half * 2} degree")
 print("========================================================================")
 
 # Giving option to user to run or not the code
 starting_code()
 
-# ============================
-# NUMBA-OPTIMIZED HELPERS
-# ============================
+
+
+########################################################
+#### FUNCTION FOR CODE AND MEMORY OPTIMIZATION #########
+########################################################
+
+# Numba optimizer helpers
 @nb.njit(fastmath=True)
 def compute_bbox_fast(lat, lon, half):
     lat_min = lat.min() - half
@@ -101,9 +109,8 @@ def compute_bbox_fast(lat, lon, half):
     lon_max = lon.max() + half
     return lat_min, lat_max, lon_min, lon_max
 
-# ============================
-# BUFFER FOR OUTPUT DATA
-# ============================
+
+# Buffer for output data
 class FastBuffer:
     def __init__(self, capacity=100000):
         self.capacity = capacity
@@ -151,9 +158,7 @@ class FastBuffer:
 buffer = FastBuffer(capacity=100000)
 total_saved = 0
 
-# ============================
-# FLUSH FUNCTION
-# ============================
+# Flush function
 def flush():
     global total_saved
     if buffer.size == 0:
@@ -181,35 +186,8 @@ def flush():
     buffer.clear()
     gc.collect()
 
-# ============================
-# DATE NORMALIZATION
-# ============================
-def normalize_date_batch(dates):
-    if len(dates) == 0:
-        return np.array([])
-    if isinstance(dates[0], bytes):
-        return np.array([d.decode('utf-8') if isinstance(d, bytes) else str(d) for d in dates])
-    result = []
-    for d in dates:
-        try:
-            result.append(d.item() if hasattr(d, 'item') else str(d))
-        except:
-            result.append(str(d))
-    return np.array(result)
 
-def get_unique_days_stream(date_dataset, chunk=300_000):
-    uniq = set()
-    N = len(date_dataset)
-    for start in tqdm(range(0, N, chunk), desc=f"Scanning {date_dataset.name} for unique days", leave=False):
-        end = min(start + chunk, N)
-        block = date_dataset[start:end]
-        normalized = normalize_date_batch(block)
-        uniq.update(normalized)
-    return sorted(uniq)
-
-# ============================
-# HARP2 COLLECTION FUNCTION
-# ============================
+# HARP2 collection function
 def collect_harp_for_bbox_and_day(lat_min, lat_max, lon_min, lon_max, day,
                                   harp_lat_d=lat_H_d, harp_lon_d=lon_H_d, harp_date_d=date_H_d,
                                   harp_rad_d=rad_H_d, chunk=600_000):
@@ -239,25 +217,29 @@ def collect_harp_for_bbox_and_day(lat_min, lat_max, lon_min, lon_max, day,
             np.concatenate(result_lists['lon']),
             np.concatenate(result_lists['rad']))
 
-# ============================
-# FIND DAYS
-# ============================
-print("Scanning input files for unique days (streaming)...")
-days_OCI = get_unique_days_stream(date_OCI_d, chunk=oci_chunk_size)
-days_H = get_unique_days_stream(date_H_d, chunk=harp_chunk_size)
-all_days = sorted(set(days_OCI) & set(days_H))
-print(f"Found {len(all_days)} common days to process\n")
 
-# ============================
-# MAIN PROCESSING LOOP
-# ============================
-print("Starting processing loop...\n")
+###########################
+#### FINDING DAYS #########
+###########################
+
+print("\n==> Scanning input files for unique days (streaming)...")
+days_OCI = get_unique_days_stream(date_OCI_d, chunk=OCI_chunk_size)
+days_H = get_unique_days_stream(date_H_d, chunk=HARP2_chunk_size)
+all_days = sorted(set(days_OCI) & set(days_H))
+print(f"Found {len(all_days)} common day(s) to process\n")
+
+
+###############################
+#### PROCESSING LOOPS #########
+###############################
+
+print("==> Starting processing loop...\n")
 for day in tqdm(all_days, desc="Days"):
     print(f"\n--- Day: {day} ---")
     N_oci = len(date_OCI_d)
 
-    for oci_chunk_start in tqdm(range(0, N_oci, oci_chunk_size), desc=f"Chunks for day {day}", leave=False):
-        oci_chunk_end = min(oci_chunk_start + oci_chunk_size, N_oci)
+    for oci_chunk_start in tqdm(range(0, N_oci, OCI_chunk_size), desc=f"Chunks for day {day}", leave=False):
+        oci_chunk_end = min(oci_chunk_start + OCI_chunk_size, N_oci)
         load_start = max(0, oci_chunk_start - overlap_rows)
         load_end = min(N_oci, oci_chunk_end + overlap_rows)
 
@@ -319,7 +301,7 @@ for day in tqdm(all_days, desc="Days"):
                 lat_min, lat_max, lon_min, lon_max, day,
                 harp_lat_d=lat_H_d, harp_lon_d=lon_H_d, 
                 harp_date_d=date_H_d, harp_rad_d=rad_H_d,
-                chunk=harp_chunk_size
+                chunk=HARP2_chunk_size
             )
 
             if harp_lat.size == 0:
@@ -425,7 +407,8 @@ for day in tqdm(all_days, desc="Days"):
 
 # Final flush
 flush()
-print(f"\n✔ All days processed — final saved entries: {total_saved:,}")
+print(f"\n==== ALL DAYS PROCESSED — final saved entries: {total_saved:,} ====")
 
 OCI_h5.close()
 HARP2_h5.close()
+
