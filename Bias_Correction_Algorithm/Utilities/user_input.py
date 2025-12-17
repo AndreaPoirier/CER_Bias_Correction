@@ -77,9 +77,14 @@ save_every_n_blocks = 5
 
 # Variables for Bias_Correction_Algorithm\processing\OCI.py
 overlap_rows = 0
+
 leafsize_for_kdtree = 100
+
 min_neighbors = globals().get("min_neighbors", 5)
+
 box_width_for_chi_and_SF_computation = globals().get("box_width_for_chi_and_SF_computation", 0.5)
+
 half = box_width_for_chi_and_SF_computation 
+
 diag = np.sqrt(2) * half
 

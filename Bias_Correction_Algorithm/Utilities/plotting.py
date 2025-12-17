@@ -249,3 +249,39 @@ def plot_pixel_level(lon_list, lat_list, data_list, pixel_list, titles, lon_min,
     plt.show()
     
 
+
+
+def plot_scatter(rad_OCI_after_regression,rad_OCI_before_regression,rad_OCI_before_qm):
+    x = rad_OCI_after_regression
+    y = rad_OCI_before_regression
+    z = rad_OCI_before_qm
+
+    # Compute R^2 values (square of Pearson correlation)
+    r2_xy = np.corrcoef(x, y)[0, 1] ** 2
+    r2_zy = np.corrcoef(z, y)[0, 1] ** 2
+
+    # Create subplots
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+    # Common limits for y = x line
+    min_val = min(x.min(), y.min(), z.min())
+    max_val = max(x.max(), y.max(), z.max())
+
+    # ---- Plot 1: X vs Y (Blue theme) ----
+    axes[0].scatter(x, y, color='tab:blue', alpha=0.5, s = 5)
+    axes[0].plot([min_val, max_val], [min_val, max_val],
+                linestyle='--', color='navy')
+    axes[0].set_xlabel('CER After Regression')
+    axes[0].set_ylabel('CER After QM')
+    axes[0].set_title(f'Regression Quality (R² = {r2_xy:.2f})')
+
+    # ---- Plot 2: Z vs Y (Orange theme) ----
+    axes[1].scatter(z, y, color='tab:orange', alpha=0.8, s =5)
+    axes[1].plot([min_val, max_val], [min_val, max_val],
+                linestyle='--', color='darkorange')
+    axes[1].set_xlabel('CER Before QM')
+    axes[1].set_ylabel('CER After QM')
+    axes[1].set_title(f'Quantile Mapping Quality (R² = {r2_zy:.2f})')
+
+    plt.tight_layout()
+    plt.show()

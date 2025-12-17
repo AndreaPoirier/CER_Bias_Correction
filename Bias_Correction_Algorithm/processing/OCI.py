@@ -38,7 +38,6 @@ rad_H_d = HARP2_h5["radius"]
 date_H_d = HARP2_h5["date"]
 
 
-
 ##################################
 #### CREATING OUTPUT .h5 FILE ####
 ##################################

@@ -169,12 +169,17 @@ rad_OCI_after_regression = X_test_full[:, 0] * best_pred
 rad_OCI_before_regression = X_test_full[:, 0] * sf_test
 
 
+####################################
+##### SCATTER PLOTS ################
+####################################
 
+plot_scatter(rad_OCI_after_regression,
+             rad_OCI_before_regression,
+             rad_OCI_before_qm)
 
-
-#####################################
+####################################
 ########## Saving train data #######
-#####################################
+####################################
 
 # Folder and file name
 filepath = os.path.join(folder_output, "train_data.h5")

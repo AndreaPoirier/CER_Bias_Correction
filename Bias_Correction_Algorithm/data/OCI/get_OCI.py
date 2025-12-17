@@ -122,57 +122,80 @@ with h5py.File(h5_path, "w") as hf:
             sza = scan_grp.variables["csol_z"][:].astype(float)
             sza = sza[:, None] * np.ones_like(lon)
 
-            # Mask invalid data
-            mask = np.zeros(lat.shape, dtype=bool)
+            # Mask invalid data (WITHOUT cloud_flag for coverage calculation)
+            mask_for_coverage = np.zeros(lat.shape, dtype=bool)
             for var in [cer_16, cer_21, cer_22, cot, sza]:
-                mask |= (var < 0) | np.isnan(var)
+                mask_for_coverage |= (var < 0) | np.isnan(var)
 
             # Mask longitude discontinuity
             lon_diff = np.abs(np.diff(lon, axis=1))
             discontinuity = lon_diff > 180
             discontinuity = np.hstack([np.zeros((discontinuity.shape[0], 1), dtype=bool), discontinuity])
-            mask |= discontinuity
-            mask |= (cer_16 < 0)
+            mask_for_coverage |= discontinuity
+            mask_for_coverage |= (cer_16 < 0)
 
             # Masking data outside of region of interest (if not world_data)
             if not world_data:
-                mask |= ~(
+                mask_for_coverage |= ~(
                     (lat >= lat_min) & (lat <= lat_max) &
                     (lon >= lon_min) & (lon <= lon_max)
                 )
-            
+
+            valid_for_coverage = ~mask_for_coverage
+
+            # Extract ALL valid pixels (including cloud_flag==0) for coverage calculation
+            lat_all = lat[valid_for_coverage]
+            lon_all = lon[valid_for_coverage]
+            cloud_flag_all = cloud_flag[valid_for_coverage]
+
+            # Build KDTree with ALL valid pixels
+            coords_all = np.column_stack([lat_all, lon_all])
+            tree_all = cKDTree(coords_all)
+
+            # NOW apply cloud_flag mask for final data (cloudy pixels only)
+            mask = mask_for_coverage.copy()
+            mask |= (cloud_flag == 0)
             valid = ~mask
 
-            # Extract valid values
+            # Extract valid values for final data (cloud_flag==0 removed)
             lat_v = lat[valid]
             lon_v = lon[valid]
             cot_v = cot[valid]
-            cloud_v = cloud_flag[valid]
 
-            # Computinh chi and cloud coverage with sliding window
+            # Computing chi and cloud coverage with sliding window
             coords = np.column_stack([lat_v, lon_v])
-            tree = cKDTree(coords)
-            chi = np.zeros_like(cot_v, dtype=np.float32)
-            cloud_cov = np.zeros_like(cloud_v, dtype=np.float32)
+            chi = np.zeros(len(lat_v), dtype=np.float32)
+            cloud_cov = np.zeros(len(lat_v), dtype=np.float32)
+
             for i, (la, lo) in enumerate(coords):
-                # Find neighbors inside 1°×1° box
-                idxs = tree.query_ball_point(
+                # Find neighbors in ALL pixels (cloudy + non-cloudy) for cloud coverage
+                idxs_all = tree_all.query_ball_point(
                     [la, lo],
                     r=box_width_for_chi_and_SF_computation,
-                    p=np.inf   
+                    p=np.inf
                 )
-                chi[i] = compute_chi(cot_v[idxs])
-                cloud_cov[i] = np.mean(cloud_v[idxs])  # same logic as chi
+                
+                # Cloud coverage = mean of cloud_flag (1s and 0s)
+                if len(idxs_all) > 0:
+                    cloud_cov[i] = np.mean(cloud_flag_all[idxs_all])
+                
+                # For chi, we need neighbors from cloudy pixels only
+                # Find which of the valid cloudy pixels are in the box
+                distances = np.sqrt((lat_v - la)**2 + (lon_v - lo)**2)
+                idxs_cloudy = np.where(distances <= box_width_for_chi_and_SF_computation)[0]
+                
+                if len(idxs_cloudy) > 0:
+                    chi[i] = compute_chi(cot_v[idxs_cloudy])
 
             # Save variables to .h5 file
             for key, arr in zip(
                 ["cer_16", "cer_21", "cer_22", "cot", "sza",
-                 "lat", "lon", "cth", "cwp",
-                 "cloud_coverage", "chi"],
+                "lat", "lon", "cth", "cwp",
+                "cloud_coverage", "chi"],
 
                 [cer_16, cer_21, cer_22, cot, sza,
-                 lat, lon, cth, cwp,
-                 cloud_cov, chi]
+                lat, lon, cth, cwp,
+                cloud_cov, chi]
             ):
                 valid_values = arr[valid].ravel().astype(np.float32) if key not in ["cloud_coverage", "chi"] else arr
                 prev = dsets[key].shape[0]
@@ -188,3 +211,5 @@ with h5py.File(h5_path, "w") as hf:
 
 print(f"Finished processing {n_runs}/{n_sample} files.")
 print(f"Data saved incrementally to: {h5_path}")
+
+
