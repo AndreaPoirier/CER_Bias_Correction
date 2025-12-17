@@ -10,9 +10,40 @@ Contact: A.Poirier@sron.nl or poirier.andrea@outlook.com
 
 ## User Manual for Algorithm 
 
-The algorithm is intended to be flexible and used by other users. The structure of the The file `Bias_Correction_Algorithm\utilities\user_input.py` gives the users option for the analysis. Instructions on how to change this file are given here.
+
+The structure of the algorithm is shown below. Only the files that must be run by the user are listed. The software was built with the intention of handling large datasets, on the order of hundreds of millions of pixels. This user manual explains the strategy used to make such computations manageable.
+
+The algorithm is organized in blocks, so scripts need to be run individually and in the correct order, allowing intermediate saving of results and helping to avoid memory-related issues. The correct order for running the files is explained below.
+
+### Step 1: Download L2 .nc files
+
+The first step is the download of the L2 .nc file. For this, the user can make use of the script `download_from_earthaccess.py` which uses Earthaccess API. See publicly available documentation (url: https://earthaccess.readthedocs.io/en/latest/) on how to use this API. Another option is to download the data from NASA Search Data engine (url: https://search.earthdata.nasa.gov/). 
+
+### Step 2: Fetch and pre-process data
+Once the data is downloaded, it must be fetched and pre-processed. This is done using the scripts `get_HARP2.py` and `get_OCI.py`. 
+
+At this stage, the algorithm saves two .h5 files locally, one for OCI and one for HARP2 data.
+
+### Step 3: Process data
+
+The OCI .h5 file is opened and processed using `OCI.py`. This script applies the quantile mapping method to generate training data.
+
+Note: This is the longest-running step and can take several days or even weeks. Careful planning is required when executing this script.
+
+The output of this step is processed_data.h5.
+
+### Step 4: Train machine learning model 
+
+The processed data is then used in `train_model.py`, where the machine learning model is trained and tested.
+
+### Apply model or perform SHAP analysis
+
+Once the model is trained, there are two main options: Apply the model to unseen data using `apply_model.py` Perform a SHAP analysis using `shap_analysis.py`
 
 ![Alt text](structure.png)
+
+The algorithm allows various analysis options, which can be configured in `user_input.py`. An explanation of each variable is provided in the script.
+
 <details>
 <summary>  Data Storage Location</summary>
 
