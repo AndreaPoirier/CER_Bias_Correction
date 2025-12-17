@@ -12,7 +12,7 @@ Contact: A.Poirier@sron.nl or poirier.andrea@outlook.com
 
 The algorithm is intended to be flexible and used by other users. The structure of the The file `Bias_Correction_Algorithm\utilities\user_input.py` gives the users option for the analysis. Instructions on how to change this file are given here.
 
-![Alt text](shapx.png)
+![Alt text](structure.png)
 <details>
 <summary>  Data Storage Location</summary>
 
