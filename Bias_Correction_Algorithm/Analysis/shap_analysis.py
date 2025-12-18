@@ -6,32 +6,52 @@ from utilities.plotting import *
 from utilities.statistics import *
 from import_lib import *
 
+plot_beeswarm = True
+plot_bar = True
+plot_interaction = True
+plot_waterfall = True
 
+print("===== SHAP Analysis  ======")
+description_of_script = """This script takes the results from the training of the model and performs a SHAP analysis. 
+"""
+print(textwrap.fill(description_of_script, width=100))
+print("========================================================================")
+print(f"Loading pre-trained model from {folder_output}")
+print(f"Saving plots to {folder_SHAP}")
+print("========================================================================")
+print("Plotting the following:\n")
+if plot_beeswarm:
+    print("- Beeswarm plot of all features")
+if plot_bar:
+    print("- Bar plot of mean |SHAP values|")
+if plot_interaction:
+    print("- Interaction values (summary plot)")
+if plot_waterfall:
+    print("- Waterfall plot for a sample prediction")
+print("========================================================================")
 
-print("Loading train data and model\n")
+starting_code()
 
 # Loading train data
-train_data_file = folder_output + "\train_data.h5"
+train_data_file = os.path.join(folder_output, "train_data.h5")  
 with h5py.File(train_data_file, "r") as f:
     X_train = f["X_train"][:]
 
-
 # Loading model 
-model_file = os.path.join(folder_output, "model.txt")  
+model_file = os.path.join(folder_output, "model_year.txt")  
 model = lgb.Booster(model_file=model_file)
 
 # Sampling data to 1,000,000 points
 n_data = 1_000_000
 if X_train.shape[0] > n_data:
-    print("The shape of the train data matrix is ", X_train.shape)
     idx = np.random.choice(X_train.shape[0], n_data, replace=False)
     X_train = X_train[idx]
-    print("The shape of the train data matrix is ", X_train.shape)
+    print("=== Sampling the data. The shape of the train data matrix now is ", X_train.shape)
 else:
-    print("No sampling.")
+    print("=== No sampling.")
 
 # Loading features names
-results_file = os.path.join(folder_output, "regression_results8.h5")
+results_file = os.path.join(folder_output, "regression_results_year.h5")
 with h5py.File(results_file, "r") as f:
     feature_list = list(f["names"].asstr()[:])
     r2_all = f["r2_test"][:]
@@ -39,8 +59,7 @@ with h5py.File(results_file, "r") as f:
 
 r2_max = np.max(r2_all)
 
-
-print("\nCalculating SHAP values with the following features\n")
+print("\n=== Calculating SHAP values with the following features\n")
 print(feature_list)
 
 # Call the function with the new feature_names argument
@@ -49,12 +68,64 @@ shap_values = calculate_shap_with_progress(model, X_train, feature_names=feature
 ##############################
 ####### BEESWARM PLOT ########
 ##############################
+if plot_beeswarm:
+    print("\n=== Plotting Beeswarm plot")
+    plt.figure(figsize=(12, 6))
+    plt.title(f"SHAP Analysis | MAE test = {best_mae:.3f} | R2 test = {r2_max:.3f}", fontsize=16)
+    shap.plots.beeswarm(shap_values, show=False)
+    plt.tight_layout()
+    plt.savefig(rf"{folder_SHAP}\plot_beeswarm")
+    plt.show()
 
-print("\nPlotting Beeswarm plot")
+##############################
+######## BAR PLOT ############
+##############################
+if plot_bar:
+    print("\n=== Plotting Bar plot")
+    plt.figure(figsize=(10, 6))
+    shap.summary_plot(shap_values, X_train, plot_type="bar", show=False)
+    plt.tight_layout()
+    plt.savefig(rf"{folder_SHAP}\plot_shap_bar")
+    plt.show()
 
-plt.figure(figsize=(12, 6))
-plt.title(f"SHAP Analysis | MAE test = "f"{best_mae:.3f}"" | R2 test = "f"{r2_max:.3f}", fontsize=16)
 
-shap.plots.beeswarm(shap_values, show=False)
-plt.tight_layout()
-plt.show()
+
+##############################
+#### WATERFALL PLOT ##########
+##############################
+if plot_waterfall:
+    print("\n=== Plotting Waterfall plot for a sample prediction")
+    sample_idx = random.randint(0, X_train.shape[0] - 1)
+    plt.figure(figsize=(10, 6))
+    shap.plots.waterfall(shap_values[sample_idx], show=False)
+    plt.tight_layout()
+    plt.savefig(rf"{folder_SHAP}\plot_shap_waterfall_sample")
+    plt.show()
+
+
+
+##############################
+## INTERACTION VALUES ########
+##############################
+if plot_interaction:
+    print("\n=== Calculating and plotting interaction values (top 4 features). Note this may take a long time. ")
+    # Compute interaction values
+    explainer = shap.TreeExplainer(model)
+    shap_interaction_values = explainer.shap_interaction_values(X_train)
+
+    # Compute mean absolute SHAP values for each feature
+    mean_abs_shap = np.abs(shap_values.values).mean(axis=0)
+    top4_idx = np.argsort(mean_abs_shap)[-4:]  # indices of top 4 features
+    top4_features = [feature_list[i] for i in top4_idx]
+
+    # Plot summary only for top 4 features
+    shap.summary_plot(
+        shap_interaction_values, 
+        X_train, 
+        feature_names=feature_list,
+        max_display=4,       # show only top 4 features
+        show=False
+    )
+    plt.tight_layout()
+    plt.savefig(rf"{folder_SHAP}\plot_shap_interaction_top4")
+    plt.show()

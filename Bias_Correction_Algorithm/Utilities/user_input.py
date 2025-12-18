@@ -27,6 +27,9 @@ folder_path_saved_processed_data = r"Bias_Correction_Algorithm\output\processed_
 # Path for output of regression and SHAP
 folder_output = r"Bias_Correction_Algorithm\output\regression"
 
+# Path for output of SHAP
+folder_SHAP = r"Bias_Correction_Algorithm\output\shap"
+
 ########## Definition of Area of Interest #########
 
 # Option 1
