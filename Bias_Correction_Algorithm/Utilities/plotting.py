@@ -23,27 +23,38 @@ def plot_multiple_cdfs_with_p(
 ):
     """
     Plot normalized cumulative distribution functions (CDFs) for multiple datasets,
-    showing the KS-test p-values (vs the first dataset) next to each label in the legend.
+    including Kolmogorov–Smirnov test p-values relative to the first dataset.
 
     Parameters
     ----------
     datasets : list of array-like
-        List of numeric arrays (e.g., radius values from different instruments).
-    labels : list of str
-        Labels for each dataset. If None, numbered automatically.
-    bins : int or sequence
-        Number of bins or bin edges for computing CDFs.
-    xlabel, ylabel, title : str
-        Axis labels and plot title.
-    colors : list of color strings
-        Optional list of colors. Defaults to matplotlib’s color cycle.
+        List of numeric datasets to compare
+    labels : list of str, optional
+        Labels for each dataset
+    bins : int or sequence, optional
+        Number of bins or bin edges
+    xlabel : str
+        X-axis label
+    ylabel : str
+        Y-axis label
+    title : str
+        Plot title
+    colors : list, optional
+        Colors for each dataset
     linewidth : float
-        Line width for CDF curves.
+        Line width of the CDF curves
     alpha : float
-        Line transparency.
+        Transparency of the curves
     show_stats : bool
-        If True, prints mean, std, and median for each dataset.
+        Whether to print mean, standard deviation, and median
+    save_folder : str
+        Folder path where the plot is saved
+    name : str
+        Filename of the saved plot
+    xtitle : str
+        Variable name for labeling
     """
+
 
     n = len(datasets)
     if labels is None:
@@ -122,21 +133,40 @@ def plot_multiple_histograms(
     xtitle = 'Variable'
 ):
     """
-    Plot normalized histograms for multiple datasets, 
-    with an option to show outlines or filled bars.
+    Plot normalized histograms for multiple datasets with optional outline-only styling.
 
     Parameters
     ----------
     datasets : list of array-like
-        List of numeric arrays (e.g., radius values from different instruments).
-    labels : list of str
-        Labels for each dataset. If None, numbered automatically.
-    bins : int or sequence
-        Number of bins or bin edges for computing histograms.
+        List of numeric datasets to compare
+    labels : list of str, optional
+        Labels for each dataset
+    bins : int or sequence, optional
+        Number of bins or bin edges
+    xlabel : str
+        X-axis label
+    ylabel : str
+        Y-axis label
+    title : str
+        Plot title
+    colors : list, optional
+        Colors for each dataset
+    linewidth : float
+        Line width of histogram outlines
+    alpha : float
+        Transparency of the histograms
+    show_stats : bool
+        Whether to print mean, standard deviation, and median
     outline_only : bool
-        If True, plot only outlines (no filled bins).
-        If False, plot filled histograms (like traditional bar charts).
+        If True, plot outlines only; otherwise, plot filled histograms
+    save_folder : str
+        Folder path where the plot is saved
+    name : str
+        Filename of the saved plot
+    xtitle : str
+        Variable name for labeling
     """
+
     n = len(datasets)
     if labels is None:
         labels = [f"Dataset {i+1}" for i in range(n)]
@@ -190,6 +220,34 @@ def plot_multiple_histograms(
     
 
 def plot_pixel_level(lon_list, lat_list, data_list, pixel_list, titles, lon_min, lon_max, lat_min, lat_max, save_folder, name, bar_title):
+    
+    """
+    Plot pixel-level gridded data on maps using a shared color scale.
+
+    Parameters
+    ----------
+    lon_list : list of array-like
+        Longitudes for each dataset
+    lat_list : list of array-like
+        Latitudes for each dataset
+    data_list : list of array-like
+        Data values to grid and plot
+    pixel_list : list of float
+        Pixel resolutions in degrees
+    titles : list of str
+        Titles for each subplot
+    lon_min, lon_max : float
+        Longitude bounds
+    lat_min, lat_max : float
+        Latitude bounds
+    save_folder : str
+        Folder path where the plot is saved
+    name : str
+        Filename of the saved plot
+    bar_title : str
+        Colorbar label
+    """
+
     # --- Create subplot figure ---
     fig, axes = plt.subplots(
         1, len(data_list),
@@ -258,6 +316,28 @@ def plot_scatter(rad_OCI_after_regression,
                  sf_test,
                  save_folder,
                  name):
+    """
+    Plot scatter and hexbin comparisons between regression, quantile mapping,
+    and reference datasets with goodness-of-fit metrics.
+
+    Parameters
+    ----------
+    rad_OCI_after_regression : array-like
+        OCI radii after regression
+    rad_OCI_before_regression : array-like
+        OCI radii before regression
+    rad_OCI_before_qm : array-like
+        OCI radii before quantile mapping
+    best_pred : array-like
+        Best model predictions
+    sf_test : array-like
+        Reference surface flux values
+    save_folder : str
+        Folder path where the plot is saved
+    name : str
+        Filename of the saved plot
+    """
+
     x = rad_OCI_after_regression
     y = rad_OCI_before_regression
     z = rad_OCI_before_qm

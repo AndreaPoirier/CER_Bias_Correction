@@ -23,6 +23,50 @@ def scaling_factor_model_lgbm_train_test(
     save_folder = "save_folder",
     name = "name", 
 ):
+    """
+    Train and evaluate a LightGBM regression model for scaling factor prediction,
+    with optional metric plotting and tqdm-based progress tracking.
+
+    Parameters
+    ----------
+    X_train : array-like
+        Training feature matrix
+    y_train : array-like
+        Training target values
+    X_test : array-like
+        Test feature matrix
+    y_test : array-like
+        Test target values
+    num_leaves : int, optional
+        Maximum number of leaves in one tree
+    learning_rate : float, optional
+        Learning rate for boosting
+    num_boost_round : int, optional
+        Number of boosting iterations
+    progress_period : int, optional
+        Progress update period (unused, kept for compatibility)
+    plot_metrics : bool, optional
+        Whether to plot training and validation metrics
+    save_folder : str
+        Folder path where the metric plot is saved
+    name : str
+        Filename of the saved plot
+
+    Returns
+    -------
+    model : lightgbm.Booster
+        Trained LightGBM model
+    y_test_pred : array-like
+        Predictions on the test set
+    r2_train : float
+        R² score on the training set
+    r2_test : float
+        R² score on the test set
+    mae_test : float
+        Mean absolute error on the test set
+    rmse_test : float
+        Root mean squared error on the test set
+"""
 
     # ---- LightGBM datasets ----
     train_data = lgb.Dataset(X_train, label=y_train)
@@ -96,6 +140,27 @@ def scaling_factor_model_lgbm_train_test(
     return model, y_test_pred, r2_train, r2_test, mae_test, rmse_test
 
 def split_train_test_data(sf_list,lat_centers,lon_centers):
+    """
+    Split data into spatially independent training and test sets
+    using latitude–longitude block sampling.
+
+    Parameters
+    ----------
+    sf_list : array-like
+        Target or data array used to determine sample count
+    lat_centers : array-like
+        Latitude values of samples
+    lon_centers : array-like
+        Longitude values of samples
+
+    Returns
+    -------
+    train_idx : numpy.ndarray
+        Indices of training samples
+    test_idx : numpy.ndarray
+        Indices of test samples
+    """
+
     all_idx = np.arange(len(sf_list))
 
     # ---- Spatial binning parameters ----

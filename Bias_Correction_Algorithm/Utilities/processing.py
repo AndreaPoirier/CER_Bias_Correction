@@ -42,7 +42,22 @@ def aggregate_oci_to_harp2_radius(lat_oci, lon_oci, rad_oci, lat_harp, lon_harp,
     """
     Aggregate OCI measurements within a radius around each HARP2 point.
     Returns mean values aligned with HARP2.
+
+    Parameters
+    ----------
+    lat_oci/lon_ci/rad_oci/lat_harp/lon_harp : np.array
+        Coordinates array for OCI and 
+        
+    Returns
+    -------
+    agg_vals : np.array
+        Aggregated OCI data
+    counts : int
+        Counts of aggregated data
+    valid_mask : np.array
+        Mask removing un-aggregated 
     """
+
     def deg_to_km_latlon(lat):
         return 111.0, 111.0 * np.cos(np.deg2rad(lat))
     
@@ -72,6 +87,40 @@ def aggregate_oci_to_harp2_radius(lat_oci, lon_oci, rad_oci, lat_harp, lon_harp,
     return agg_vals, counts, valid_mask
 
 def print_pair_stats(y_ref, y_model, label):
+    """
+    Calculates model performance
+
+    Parameters
+    ----------
+    y_ref : np.array
+        True/reference data 
+    
+    y_model : np.array
+        Estimated/predicted data
+
+    label : str 
+        Instrument name and stages of correction 
+
+    Returns
+    -------
+    len(y_ref) : int
+        Number of data 
+
+    rmse : float
+        Root Mean Square
+
+    mae : float
+        Mean Absolute Error
+
+    bias : float
+        Bias
+
+    aare : float
+        Absolute average relative error
+
+    error_array : np.array 
+        Error for every point
+    """
     rmse = np.sqrt(mean_squared_error(y_ref, y_model))
     mae = mean_absolute_error(y_ref, y_model)
     bias = np.mean(y_model - y_ref)
@@ -101,6 +150,48 @@ def log_metrics(
     
 ):
     """Logs evaluation metrics and model ranking results to a file and prints them."""
+    """
+    Logs evaluation metrics and model ranking results to a file and prints them.
+
+    Parameters
+    ----------
+    label : str 
+        Instrument name and stages of correction 
+
+    count : int
+        Number of data 
+
+    rmse : float
+        Root Mean Square
+
+    mae : float
+        Mean Absolute Error
+
+    bias : float
+        Bias
+
+    aare : float
+        Absolute average relative error
+    
+    output_file : str
+        Path where to save log 
+
+    mode : str 
+        Option to delete and write or keep and write
+
+    best_combo : list[str]
+        List of the features used in regressor
+    
+    best_mae : float
+        Best MAE of all features combinations
+
+    r2_all : list[float]
+        R2 (correlation metric) of all features combinations
+
+    Returns
+    -------
+    log file
+    """
     with open(output_file, mode) as f:
         
         f.write("\n=== MACHINE LEARNING PERFORMANCE ===\n")
@@ -121,6 +212,19 @@ def log_metrics(
         
 
 def is_corrupted(path):
+    """
+    Check if the file's (NetCDF or H5) is corrupted or not.
+
+    Parameters
+    ----------
+    path : str
+        Path of file to check 
+    
+    Returns
+    -------
+    bool
+        True if file's is corrupted, False otherwise.
+    """
     # Check HDF5 signature
     try:
         with h5py.File(path, "r"):
@@ -139,6 +243,18 @@ def is_corrupted(path):
 
 
 def removing_corrupted_files(base_folder):
+    """
+    Check if .h5 file is corrupted, and removes it if it is
+
+    Parameters
+    ----------
+    base_folder : str
+        Path of folder in which all files must be checked
+    
+    Returns
+    -------
+    
+    """
     corrupted_count = 0
     total_files = []
 
@@ -162,6 +278,16 @@ def removing_corrupted_files(base_folder):
     print("---------------------------")
 
 def starting_code():
+    """
+    Starts code if user enters y and stop code otherwise
+
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    
+    """
     user_input = input("\n===== ENTER 'y' TO RUN FILE: ")
     if user_input.lower() != 'y':
         print("Stopping the program.")
@@ -169,6 +295,20 @@ def starting_code():
     print("\nCode is running...")
 
 def normalize_date_batch(dates):
+    """
+    Normalize a batch of date-like values into a NumPy array of strings.
+
+    Parameters
+    ----------
+    dates : array-like
+        Iterable containing date values (may include bytes, NumPy scalars,
+        or other objects convertible to string)
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of normalized date strings
+    """
     if len(dates) == 0:
         return np.array([])
     if isinstance(dates[0], bytes):
@@ -182,6 +322,21 @@ def normalize_date_batch(dates):
     return np.array(result)
 
 def get_unique_days_stream(date_dataset, chunk=300_000):
+    """
+    Extract unique day values from a date dataset in a streaming (chunked) manner.
+
+    Parameters
+    ----------
+    date_dataset : array-like
+        Dataset containing date values and supporting slicing
+    chunk : int, optional
+        Number of elements to process per chunk
+
+    Returns
+    -------
+    list
+        Sorted list of unique day values
+    """
     uniq = set()
     N = len(date_dataset)
     for start in tqdm(range(0, N, chunk), desc=f"Scanning {date_dataset.name} for unique days", leave=False):
