@@ -15,24 +15,20 @@ class TQDMProgress:
 
 def scaling_factor_model_lgbm_train_test(
     X_train, y_train, X_test, y_test, 
-    iqr_k=5,
     num_leaves=128,
     learning_rate=0.01,
-    num_boost_round=300,
-    progress_period=20
+    num_boost_round=250,
+    progress_period=20,
+    plot_metrics=True,
+    save_folder = "save_folder",
+    name = "name", 
 ):
-    # ---- Remove outliers only from TRAIN ----
-    Q1, Q3 = np.percentile(y_train, 25), np.percentile(y_train, 75)
-    IQR = Q3 - Q1
-    lower, upper = Q1 - iqr_k * IQR, Q3 + iqr_k * IQR
-    mask = (y_train >= lower) & (y_train <= upper)
-    X_train_clean, y_train_clean = X_train[mask], y_train[mask]
 
     # ---- LightGBM datasets ----
-    train_data = lgb.Dataset(X_train_clean, label=y_train_clean)
+    train_data = lgb.Dataset(X_train, label=y_train)
     valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
 
-    # ---- LightGBM parameters ----
+    # ---- Parameters ----
     params = {
         "objective": "regression",
         "metric": "l2",
@@ -42,37 +38,92 @@ def scaling_factor_model_lgbm_train_test(
         "bagging_fraction": 0.8,
         "bagging_freq": 1,
         "min_data_in_leaf": 50,
-        "verbose": 1,  # Needed for callbacks to print properly
+        "verbose": -1,
         "force_col_wise": True
     }
 
-    # ---- Train with early stopping + percentage progress bar ----
-    tqdm_callback = TQDMProgress(total_rounds=num_boost_round)
+    evals_result = {}
 
+    # ---- Train model ----
     model = lgb.train(
         params,
         train_data,
-        valid_sets=[valid_data],
+        valid_sets=[train_data, valid_data],
+        valid_names=["train", "valid"],
         num_boost_round=num_boost_round,
         callbacks=[
             lgb.early_stopping(stopping_rounds=50),
-            tqdm_callback
+            lgb.record_evaluation(evals_result),  # ✅ FIX
+            TQDMProgress(total_rounds=num_boost_round),
         ]
     )
 
     best_iter = model.best_iteration
 
+    # ---- Plot metric vs iterations ----
+    if plot_metrics:
+        metric_name = list(evals_result["train"].keys())[0]
+
+        train_metric = evals_result["train"][metric_name]
+        valid_metric = evals_result["valid"][metric_name]
+
+        plt.figure(figsize=(8, 5))
+        plt.plot(train_metric, label=f"Train {metric_name}")
+        plt.plot(valid_metric, label=f"Validation {metric_name}")
+        plt.axvline(best_iter, linestyle="--", color="gray", label="Best iteration")
+        plt.xlabel("Boosting Iterations")
+        plt.ylabel(metric_name)
+        plt.title(f"LightGBM {metric_name} vs Iterations")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        try:
+            plt.savefig(rf"{save_folder}\{name}")
+        except:
+            print(name, "plot was not saves successfully. Check save path")
+        plt.show()
+
     # ---- Predictions ----
-    y_train_pred = model.predict(X_train_clean, num_iteration=best_iter)
+    y_train_pred = model.predict(X_train, num_iteration=best_iter)
     y_test_pred = model.predict(X_test, num_iteration=best_iter)
 
     # ---- Metrics ----
-    r2_train = r2_score(y_train_clean, y_train_pred)
+    r2_train = r2_score(y_train, y_train_pred)
     r2_test = r2_score(y_test, y_test_pred)
     mae_test = mean_absolute_error(y_test, y_test_pred)
     rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
 
     return model, y_test_pred, r2_train, r2_test, mae_test, rmse_test
+
+def split_train_test_data(sf_list,lat_centers,lon_centers):
+    all_idx = np.arange(len(sf_list))
+
+    # ---- Spatial binning parameters ----
+    # Choose bin size according to spatial correlation length
+    # Example: 1 degree bins (adjust if needed)
+    lat_bin_size = 1.0
+    lon_bin_size = 1.0
+
+    lat_bins = np.floor(lat_centers / lat_bin_size).astype(int)
+    lon_bins = np.floor(lon_centers / lon_bin_size).astype(int)
+
+    # Unique spatial block ID
+    spatial_block_id = lat_bins * 100000 + lon_bins
+
+    # ---- Select spatial blocks for test set ----
+    rng = np.random.default_rng(42)
+    unique_blocks = np.unique(spatial_block_id)
+
+    n_test_blocks = int(0.2 * len(unique_blocks))
+    test_blocks = rng.choice(unique_blocks, size=n_test_blocks, replace=False)
+
+    test_mask = np.isin(spatial_block_id, test_blocks)
+    train_mask = ~test_mask
+
+    train_idx = all_idx[train_mask]
+    test_idx  = all_idx[test_mask]
+    return train_idx, test_idx
+
 
 def quantile_mapping(x=None, bias=None, unbias=None):
     """

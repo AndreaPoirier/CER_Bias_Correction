@@ -47,7 +47,7 @@ print(feature_list)
 shap_values = calculate_shap_with_progress(model, X_train, feature_names=feature_list, batch_size=5000)
 
 ##############################
-#### BEESWARM PLOT ###########
+####### BEESWARM PLOT ########
 ##############################
 
 print("\nPlotting Beeswarm plot")
@@ -57,8 +57,4 @@ plt.title(f"SHAP Analysis | MAE test = "f"{best_mae:.3f}"" | R2 test = "f"{r2_ma
 
 shap.plots.beeswarm(shap_values, show=False)
 plt.tight_layout()
-plt.savefig(r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Output\Validation\SHAP1.png")
 plt.show()
-
-
-

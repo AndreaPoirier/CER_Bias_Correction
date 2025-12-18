@@ -78,9 +78,11 @@ def print_pair_stats(y_ref, y_model, label):
     eps = 1e-8
     aare = np.mean(np.abs((y_model - y_ref) / (y_ref + eps))) * 100.0
     error_array = np.abs(y_model - y_ref)
-    print(f"--- {label} ---")
+    print(f"\n--- {label} ---")
     print(f"Count: {len(y_ref)}")
-    print(f"RMSE: {rmse:.6f}  Mean Absolute Error: {mae:.6f}  Bias: {bias:.6f}")
+    print(f"RMSE: {rmse:.6f}")
+    print(f"Mean Absolute Error: {mae:.6f}  Bias: {bias:.6f}")
+    print(f"Bias: {bias:.6f}")
     print(f"Absolute Relative Error: {aare:.3f}%  ")
     return len(y_ref), rmse, mae, bias, aare, error_array
 
@@ -93,23 +95,18 @@ def log_metrics(
     aare,
     output_file,
     mode,
-    results_sorted,
-    top_n=10
+    best_combo,
+    best_mae,
+    r2_all
+    
 ):
     """Logs evaluation metrics and model ranking results to a file and prints them."""
     with open(output_file, mode) as f:
-        f.write("\n=== TOP VARIABLE COMBINATIONS ===\n")
-        f.write(f"Showing top {min(top_n, len(results_sorted))} combinations:\n")
-
-        for i, (names, r2, mae_val) in enumerate(results_sorted[:top_n], 1):
-            f.write(f"{i}. Combo: {names}: Test MAE SF = {mae_val:.4f}, Test R2 = {r2:.4f}\n")
-
-        # Best model (lowest MAE)
-        best_names, best_r2, best_mae = results_sorted[0]
-        f.write("\n=== BEST VARIABLE COMBINATION ===\n")
-        f.write(f"Combo: {best_names}\n")
-        f.write(f"Best Mean Absolute Error for the Scaling Factor (test data): {best_mae:.4f}\n")
-        f.write(f"Corresponding R2: {best_r2:.4f}\n\n")
+        
+        f.write("\n=== MACHINE LEARNING PERFORMANCE ===\n")
+        f.write(f"Features: {best_combo}\n")
+        f.write(f"MAE of Test: {best_mae:.4f}\n")
+        f.write(f"R2 Test {r2_all[0]:.4f}\n\n")
 
         f.write("=== PERFORMANCE METRICS FOR BEST COMBINATION===\n")
 

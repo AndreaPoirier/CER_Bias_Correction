@@ -251,37 +251,79 @@ def plot_pixel_level(lon_list, lat_list, data_list, pixel_list, titles, lon_min,
 
 
 
-def plot_scatter(rad_OCI_after_regression,rad_OCI_before_regression,rad_OCI_before_qm):
+def plot_scatter(rad_OCI_after_regression,
+                 rad_OCI_before_regression,
+                 rad_OCI_before_qm,
+                 best_pred,
+                 sf_test,
+                 save_folder,
+                 name):
     x = rad_OCI_after_regression
     y = rad_OCI_before_regression
     z = rad_OCI_before_qm
 
-    # Compute R^2 values (square of Pearson correlation)
+    # Compute metrics
     r2_xy = np.corrcoef(x, y)[0, 1] ** 2
     r2_zy = np.corrcoef(z, y)[0, 1] ** 2
+    r2_sf = np.corrcoef(best_pred, sf_test)[0, 1] ** 2
 
-    # Create subplots
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    mae_xy = np.mean(np.abs(y - x))
+    mae_zy = np.mean(np.abs(y - z))
+    mae_sf = np.mean(np.abs(sf_test - best_pred))
 
-    # Common limits for y = x line
-    min_val = min(x.min(), y.min(), z.min())
-    max_val = max(x.max(), y.max(), z.max())
+    # -----------------------------
+    # Plot setup
+    # -----------------------------
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    # ---- Plot 1: X vs Y (Blue theme) ----
-    axes[0].scatter(x, y, color='tab:blue', alpha=0.5, s = 5)
-    axes[0].plot([min_val, max_val], [min_val, max_val],
-                linestyle='--', color='navy')
+    # -----------------------------
+    # Plot 1: Regression vs After QM
+    # -----------------------------
+    min_val = min(x.min(), y.min())
+    max_val = max(x.max(), y.max())
+    hb = axes[0].hexbin(x, y, gridsize=100, cmap='Blues', mincnt=1, bins='log')
+    axes[0].plot([min_val, max_val], [min_val, max_val], '--', color='gray', lw=1)
+    axes[0].set_title(f'Regression Quality\nR²={r2_xy:.2f}')
     axes[0].set_xlabel('CER After Regression')
     axes[0].set_ylabel('CER After QM')
-    axes[0].set_title(f'Regression Quality (R² = {r2_xy:.2f})')
+    axes[0].set_xlim(min_val, max_val)
+    axes[0].set_ylim(min_val, max_val)
+    axes[0].set_aspect('equal', adjustable='box')
+    fig.colorbar(hb, ax=axes[0], label='Density')
 
-    # ---- Plot 2: Z vs Y (Orange theme) ----
-    axes[1].scatter(z, y, color='tab:orange', alpha=0.8, s =5)
-    axes[1].plot([min_val, max_val], [min_val, max_val],
-                linestyle='--', color='darkorange')
+    # -----------------------------
+    # Plot 2: Before QM vs After QM
+    # -----------------------------
+    min_val = min(y.min(), z.min())
+    max_val = max(y.max(), z.max())
+    hb = axes[1].hexbin(z, y, gridsize=100, cmap='Oranges', mincnt=1,bins = 'log')
+    axes[1].plot([min_val, max_val], [min_val, max_val], '--', color='gray', lw=1)
+    axes[1].set_title(f'QM Quality\nR²={r2_zy:.2f}')
     axes[1].set_xlabel('CER Before QM')
     axes[1].set_ylabel('CER After QM')
-    axes[1].set_title(f'Quantile Mapping Quality (R² = {r2_zy:.2f})')
+    axes[1].set_xlim(min_val, max_val)
+    axes[1].set_ylim(min_val, max_val)
+    axes[1].set_aspect('equal', adjustable='box')
+    fig.colorbar(hb, ax=axes[1], label='Density')
+
+    # -----------------------------
+    # Plot 3: SF After Regression vs SF After QM
+    # -----------------------------
+    min_val = min(best_pred.min(), sf_test.min())
+    max_val = max(best_pred.max(), sf_test.max())
+    hb = axes[2].hexbin(best_pred, sf_test, gridsize=100, cmap='Reds', mincnt=1, bins = 'log')
+    axes[2].plot([min_val, max_val], [min_val, max_val], '--', color='gray', lw=1)
+    axes[2].set_title(f'SF Regression Quality\nR²={r2_sf:.2f}')
+    axes[2].set_xlabel('SF After Regression')
+    axes[2].set_ylabel('SF After QM')
+    axes[2].set_xlim(min_val, max_val)
+    axes[2].set_ylim(min_val, max_val)
+    axes[2].set_aspect('equal', adjustable='box')
+    fig.colorbar(hb, ax=axes[2], label='Density')
 
     plt.tight_layout()
+    try:
+        plt.savefig(rf"{save_folder}\{name}")
+    except:
+        print(name, "plot was not saves successfully. Check save path")
     plt.show()

@@ -1,32 +1,28 @@
 
-=== TOP VARIABLE COMBINATIONS ===
-Showing top 1 combinations:
-1. Combo: b'Uncorrected Radius': Test MAE SF = 0.0420, Test R2 = 0.9159
-
-=== BEST VARIABLE COMBINATION ===
-Combo: b'Uncorrected Radius'
-Best Mean Absolute Error for the Scaling Factor (test data): 0.0420
-Corresponding R2: 0.9159
+=== MACHINE LEARNING PERFORMANCE ===
+Features: CER 16, CER 21, CER 22, SZA, Chi, Cloud Coverage, COT, CTH, CWP
+MAE of Test: 0.1170
+R2 Test 0.2069
 
 === PERFORMANCE METRICS FOR BEST COMBINATION===
 
 --- Uncorrected OCI data ---
-Count: 11473
-RMSE: 9.208123
-Mean Absolute Error: 7.504360
-Bias: 7.011857
-Absolute Relative Error: 98.340%
+Count: 418
+RMSE: 9.782548
+Mean Absolute Error: 8.290207
+Bias: 7.286144
+Absolute Relative Error: 111.527%
 
 --- Corrected OCI Before Regression ---
-Count: 11473
-RMSE: 3.599894
-Mean Absolute Error: 2.650157
-Bias: -0.243359
-Absolute Relative Error: 27.074%
+Count: 418
+RMSE: 4.394171
+Mean Absolute Error: 3.148754
+Bias: 0.593648
+Absolute Relative Error: 34.262%
 
 --- Corrected OCI After Regression ---
-Count: 11473
-RMSE: 3.725750
-Mean Absolute Error: 2.767460
-Bias: -0.337547
-Absolute Relative Error: 28.403%
+Count: 418
+RMSE: 4.690575
+Mean Absolute Error: 3.507543
+Bias: -1.107201
+Absolute Relative Error: 35.224%
