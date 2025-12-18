@@ -16,7 +16,7 @@ description_of_script = """This script takes the results from the training of th
 """
 print(textwrap.fill(description_of_script, width=100))
 print("========================================================================")
-print(f"Loading pre-trained model from {folder_output}")
+print(f"Loading pre-trained model from {folder_train}")
 print(f"Saving plots to {folder_SHAP}")
 print("========================================================================")
 print("Plotting the following:\n")
@@ -33,12 +33,12 @@ print("========================================================================"
 starting_code()
 
 # Loading train data
-train_data_file = os.path.join(folder_output, "train_data.h5")  
+train_data_file = os.path.join(folder_train, "train_data.h5")  
 with h5py.File(train_data_file, "r") as f:
     X_train = f["X_train"][:]
 
 # Loading model 
-model_file = os.path.join(folder_output, "model_year.txt")  
+model_file = os.path.join(folder_train, "model_year.txt")  
 model = lgb.Booster(model_file=model_file)
 
 # Sampling data to 1,000,000 points
@@ -51,7 +51,7 @@ else:
     print("=== No sampling.")
 
 # Loading features names
-results_file = os.path.join(folder_output, "regression_results_year.h5")
+results_file = os.path.join(folder_train, "regression_results_year.h5")
 with h5py.File(results_file, "r") as f:
     feature_list = list(f["names"].asstr()[:])
     r2_all = f["r2_test"][:]

@@ -49,7 +49,7 @@ plot_l2_it = True
 
 # Define variables to be tried in the regression
 variables = [cer_16, cer_21, cer_22, sza, chi, cloud_coverage, cot, cth, cwp]
-variables_names = ["CER 16", "CER 21","CER 22", "SZA","Chi","Cloud Coverage","COT","CTH","CWP",]
+variables_names = ["CER 16", "CER 21","CER 22", "SZA","Chi","Cloud Coverage","COT","CTH","CWP"]
 
 print("===== TRAIN MACHINE LEARNING REGRESSOR  ======")
 description_of_script = """This script takes the processed data from processed_data.h5 and uses it to train the LightGBM Model. 
@@ -58,6 +58,7 @@ print(textwrap.fill(description_of_script, width=100))
 print("========================================================================")
 print(f"Loading OCI processed data from {processed_data_file}")
 print(f"Loading HARP2 (for comparison) data from {processed_data_file}")
+print(f"Saving outputs (plots, model ...) to {folder_train}")
 print("========================================================================")
 print(f"Size of training data: {len(lat)}")
 print(f"Features used in training {variables_names}")
@@ -104,8 +105,8 @@ lon_OCI_test = lon[test_idx]
 ##### CREATE .h5 FILE #################
 #######################################
 
-os.makedirs(folder_output, exist_ok=True)
-results_file = os.path.join(folder_output, "regression_results_year.h5")
+os.makedirs(folder_train, exist_ok=True)
+results_file = os.path.join(folder_train, "regression_results_year.h5")
 with h5py.File(results_file, "w") as f:
     f.create_dataset("names", shape=(0,), maxshape=(None,), dtype=h5py.string_dtype())
     f.create_dataset("r2_test", shape=(0,), maxshape=(None,), dtype="f")
@@ -130,7 +131,7 @@ X_test  = X_test_full[:, sel_vars]
 try:
     model, y_pred_test, r2_train, r2_test, mae_test, rmse_test = scaling_factor_model_lgbm_train_test(
         X_train, y_train, X_test, y_test,
-        plot_metrics=plot_l2_it, save_folder=folder_output, name = "plot_l2_vs_iterations"
+        plot_metrics=plot_l2_it, save_folder=folder_train, name = "plot_l2_vs_iterations"
     )
     
    
@@ -151,7 +152,7 @@ try:
         f["best_pred"][:] = y_pred_test
 
     # Save model
-    save_path = os.path.join(folder_output, "model_year.txt")
+    save_path = os.path.join(folder_train, "model_year.txt")
     model.save_model(save_path)
 
 except Exception as e:
@@ -196,10 +197,10 @@ rad_OCI_before_regression = X_test_full[:, 0] * sf_test
 ####################################
 
 # Folder and file name
-filepath = os.path.join(folder_output, "train_data.h5")
+filepath = os.path.join(folder_train, "train_data.h5")
 
 # Ensure folder exists
-os.makedirs(folder_output, exist_ok=True)
+os.makedirs(folder_train, exist_ok=True)
 
 # Write to .h5 file
 with h5py.File(filepath, "w") as f:
@@ -246,7 +247,7 @@ log_metrics(
     mae = [mae_uncorr, mae_before_reg, mae_corr], 
     bias = [bias_uncorr,bias_before_reg, bias_corr], 
     aare = [aare_uncorr, aare_before_reg, aare_corr], 
-    output_file = folder_output + "\log_results_regression.txt", 
+    output_file = folder_train + "\log_results_regression.txt", 
     mode="w",
     best_combo = best_combo,
     best_mae = best_mae,
@@ -259,12 +260,13 @@ log_metrics(
 ####################################
 
 if plot_corr_analysis:
+    print("\n== Plotting the correlation analysis scatter ...")
     plot_scatter(rad_OCI_after_regression,
                 rad_OCI_before_regression,
                 rad_OCI_before_qm,
                 best_pred,
                 sf_test,
-                save_folder=folder_output,
+                save_folder=folder_train,
                 name = "plot_scatter")
 
 
@@ -283,7 +285,7 @@ if plot_hist_cer:
             title='Histograms of CER ',
             outline_only=True,
             show_stats=False,
-            save_folder=folder_output,
+            save_folder=folder_train,
             name = 'plot_cer_histogram',
             xtitle = 'CER (um)'
         )
@@ -296,7 +298,7 @@ if plot_cdf_cer:
         bins=100,
         title='Cumulative Distribution Functions of CER',
         show_stats=False,
-        save_folder=folder_output,
+        save_folder=folder_train,
         name = "plot_cer_cdf",
         xtitle = 'CER (um)'
         )

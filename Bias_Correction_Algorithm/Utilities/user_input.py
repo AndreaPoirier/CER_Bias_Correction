@@ -25,10 +25,13 @@ folder_path_MODIS = r"D:\Data\MODIS\MYD06_L2_6.1-20251211_143824"
 folder_path_saved_processed_data = r"Bias_Correction_Algorithm\output\processed_data"
 
 # Path for output of regression and SHAP
-folder_output = r"Bias_Correction_Algorithm\output\regression"
+folder_output = r"Bias_Correction_Algorithm\output\region"
 
 # Path for output of SHAP
 folder_SHAP = r"Bias_Correction_Algorithm\output\shap"
+
+# Path for output of regression and SHAP
+folder_train = r"Bias_Correction_Algorithm\output\regression"
 
 ########## Definition of Area of Interest #########
 

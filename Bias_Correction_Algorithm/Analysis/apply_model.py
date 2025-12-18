@@ -16,28 +16,41 @@ from import_lib import *
 processed_data_file = folder_path_saved_processed_data + '\processed_data.h5'
 
 with h5py.File(processed_data_file, 'r') as f:
-    # OCI/MODIS Data
+
+    # OCI/MODIS
     lat = f['lat_centers'][:]
     lon = f['lon_centers'][:]
-    cloud_coverage = f['cloud_coverage'][:]
-    cot = f['cot'][:]
-    sf = f['sf'][:]
-    cer_16_uncorrected = f['rad_uncorrected'][:]
-    sza = f['sza'][:]
-    instrument = f['Instrument_to_correct'][()].decode('utf-8')
-    chi = f['chi'][:]
 
-    # HARP2 data
+    cloud_coverage = f['cloud_coverage'][:]
+    cer_16 = f['rad_uncorrected'][:]
+    cer_21 = f['cer_21'][:]
+    cer_22 = f['cer_22'][:]
+    cth = f['cth'][:]
+    cwp = f['cwp'][:]
+    sza = f['sza'][:]
+    chi = f['chi'][:]
+    cot = f['cot'][:]
+    instrument = f['Instrument_to_correct'][()].decode('utf-8')
+
+    # HARP2
     rad_HARP2 = f['rad_HARP2'][:]
     lon_HARP2 = f['lon_HARP2'][:]
     lat_HARP2 = f['lat_HARP2'][:]
 
+    # Scaling Factor
+    sf = f['sf'][:]
 
-# Define features used in ML model
-features = [cer_16_uncorrected, sza, chi, cloud_coverage, cot]
-features_names = ["CER Uncorrected", "SZA","Chi","Cloud Coverage","COT"]
-# features = [np.array(v) for v in features]
-# sf = np.array(sf)
+plot_map_cer = True
+plot_hist_cer = True
+plot_cdf_cer = True
+plot_map_bias = True
+plot_hist_bias = True
+plot_corr_analysis = True
+
+# Define variables to be tried in the regression
+features = [cer_16, cer_21, cer_22, sza, chi, cloud_coverage, cot, cth, cwp]
+features_names = ["CER 16", "CER 21","CER 22", "SZA","Chi","Cloud Coverage","COT","CTH","CWP"]
+
 X_all = np.column_stack(features)
 
 ########################################y
@@ -45,8 +58,8 @@ X_all = np.column_stack(features)
 ########################################
 
 
-os.makedirs(folder_output, exist_ok=True)  
-save_path = os.path.join(folder_output, "model.txt")  
+os.makedirs(folder_train, exist_ok=True)  
+save_path = os.path.join(folder_train, "model_year.txt")  
 loaded_model = lgb.Booster(model_file=save_path)
 
 
@@ -58,46 +71,32 @@ print(textwrap.fill(description_of_script, width=100))
 print("========================================================================")
 print(f"Loading {instrument} processed data from {processed_data_file}")
 print(f"Loading HARP2 (for comparison) data from {processed_data_file}")
-print(f"Loading trained model from {folder_output}")
+print(f"Loading trained model from {folder_train}")
+print(f"Saving plots to {folder_output}")
 print("========================================================================")
 print(f"Region box: "f"lat_min: {lat.min():.2f} | "f"lat_max: {lat.max():.2f} | "f"lon_min: {lon.min():.2f} | "f"lon_max: {lon.max():.2f}")
 print("========================================================================")
+print("Plotting the following:\n")
+if plot_map_cer:
+    print("- Map of CER before and after correction")
+if plot_hist_cer:
+    print("- Histograms of CER for uncorrected, qm corrected, regressed corrected and reference")
+if plot_cdf_cer:
+    print("- CDF of CER for uncorrected, qm corrected, regressed corrected and reference")
+if plot_map_bias:
+    print("- MAP of CER bias for uncorrected and regressed corrected")
+if plot_hist_bias:
+    print("- Histograms of CER bias for uncorrected, qm corrected, and regressed corrected")
+if plot_scatter:
+    print("- Correlation analysis")
 
 starting_code()
 
 sf_pred = loaded_model.predict(X_all)
-cer_before_qm = X_all[:, 0]
-cer_after_reg = X_all[:, 0] * sf_pred
-cer_before_reg = X_all[:, 0] * sf
 
-
-######################################
-##### PLOT region CDF and Histo ######
-######################################
-
-print("\n== Plotting the histogram and CDF ...")
-
-plot_multiple_histograms(
-        datasets=[rad_HARP2,cer_after_reg,cer_before_qm, cer_before_reg],
-        labels = ['HARP2', f' {instrument} After Regression',f' {instrument} Before QM',f' {instrument} Before Regression'],   
-        bins=100,
-        title='Historgram of Cloud Effective Radius ',
-        outline_only=True,
-        show_stats=False,
-        save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression"
-    )
-
-plot_multiple_cdfs_with_p(
-    datasets=[rad_HARP2,cer_after_reg,cer_before_qm, cer_before_reg],
-    labels = ['HARP2', f' {instrument} After Regression',f' {instrument} Before QM',f' {instrument} Before Regression'],   
-    bins=100,
-    title='CDF of Cloud Effective Radius',
-    show_stats=False,
-    save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression"
-    )
-
-
-
+rad_OCI_before_qm = X_all[:, 0]
+rad_OCI_after_regression = X_all[:, 0] * sf_pred
+rad_OCI_before_regression = X_all[:, 0] * sf
 ################################################################
 ########## COMPUTE DIFFERENCE BEFORE AND AFTER CORRECTION ######
 ################################################################
@@ -106,15 +105,15 @@ print("\n== Computing comparison statistics ...\n")
 
 #Aggregate data
 agg_uncorr, counts_uncorr, mask_uncorr = aggregate_oci_to_harp2_radius(
-    lat, lon, cer_before_qm,
+    lat, lon, rad_OCI_before_qm,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 agg_corr, counts_corr, mask_corr = aggregate_oci_to_harp2_radius(
-    lat, lon, cer_after_reg,
+    lat, lon, rad_OCI_after_regression,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 agg_before_reg, counts_before_reg, mask_before_reg = aggregate_oci_to_harp2_radius(
-    lat, lon, cer_before_reg,
+    lat, lon, rad_OCI_before_regression,
     lat_HARP2, lon_HARP2, radius_km=5
 )
 
@@ -126,81 +125,83 @@ paired_corr = agg_corr[valid_mask]
 paired_before_reg = agg_before_reg[valid_mask]
 
 
-
-count_uncorr, rmse_uncorr, mae_uncorr, bias_uncorr, aare_uncorr, error_uncorr = print_pair_stats(paired_harp, paired_uncorr, f"Uncorrected {instrument} data")
-count_before_reg, rmse_before_reg, mae_before_reg, bias_before_reg, aare_before_reg, error_before_reg = print_pair_stats(paired_harp, paired_before_reg, f"Corrected {instrument} Before Regression")
-count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_pair_stats(paired_harp, paired_corr, f"Corrected {instrument} After Regression")
-
-
-################################################################
-########## SHOW CORRELATION WITH FEATURES BEFORE AND AFTER #######
-################################################################
-
-# Cloud inhomogeneity
-agg_chi, counts_chi, mask_chi= aggregate_oci_to_harp2_radius(
-    lat, lon, chi,
-    lat_HARP2, lon_HARP2, radius_km=5
-)
-agg_chi = agg_chi[valid_mask]
-r_uncorr_chi, _ = pearsonr(agg_chi, error_uncorr)
-r_corr_chi, _   = pearsonr(agg_chi, error_after_reg)
-
-# Solar Zenith Angle
-agg_sza, counts_sza, mask_sza= aggregate_oci_to_harp2_radius(
-    lat, lon, sza,
-    lat_HARP2, lon_HARP2, radius_km=5
-)
-agg_sza = agg_sza[valid_mask]
-r_uncorr_sza, _ = pearsonr(agg_sza, error_uncorr)
-r_corr_sza, _   = pearsonr(agg_sza, error_after_reg)
-
-r_uncorr_cer, _ = pearsonr(paired_uncorr, error_uncorr)
-r_corr_cer, _   = pearsonr(paired_uncorr, error_after_reg)
-# plots
-
-fig, ax = plt.subplots(1, 3, figsize=(12, 5))
-
-# CHI
-ax[0].scatter(agg_chi, error_uncorr,
-              label=f'Uncorrected (r = {r_uncorr_chi:.3f})')
-ax[0].scatter(agg_chi, error_after_reg,
-              label=f'Corrected (r = {r_corr_chi:.3f})')
-ax[0].legend(loc='upper left')
-ax[0].set_xlabel("Cloud Inhomogeneity (-)")
-ax[0].set_ylabel("Error (um)")
-ax[0].set_title("Error vs Chi")
-
-# SZA
-ax[1].scatter(agg_sza, error_uncorr,
-              label=f'Uncorrected (r = {r_uncorr_sza:.3f})')
-ax[1].scatter(agg_sza, error_after_reg,
-              label=f'Corrected (r = {r_corr_sza:.3f})')
-ax[1].legend(loc='upper left')
-ax[1].set_xlabel("Solar Zenith Angle (deg)")
-ax[1].set_ylabel("Error (um)")
-ax[1].set_title("Error vs SZA")
-
-# raduncorr
-ax[2].scatter(paired_uncorr, error_uncorr,
-              label=f'Uncorrected (r = {r_uncorr_cer:.3f})')
-ax[2].scatter(paired_uncorr, error_after_reg,
-              label=f'Corrected (r = {r_corr_cer:.3f})')
-ax[2].legend(loc='upper left')
-ax[2].set_xlabel("Uncorrected CER (um)")
-ax[2].set_ylabel("Error (um)")
-ax[2].set_title("Error vs uncorrected CER")
-
-# Layout
-plt.tight_layout()
-plt.show()
+# Calculate and print stats
+count_uncorr, rmse_uncorr, mae_uncorr, bias_uncorr, aare_uncorr, error_uncorr = print_pair_stats(paired_harp, paired_uncorr, "Uncorrected OCI data")
+count_before_reg, rmse_before_reg, mae_before_reg, bias_before_reg, aare_before_reg, error_before_reg = print_pair_stats(paired_harp, paired_before_reg, "Corrected OCI Before Regression")
+count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_pair_stats(paired_harp, paired_corr, "Corrected OCI After Regression")
 
 
+####################################
+##### SCATTER PLOTS ################
+####################################
+
+if plot_corr_analysis:
+    print("\n== Plotting the correlation analysis scatter ...")
+    plot_scatter(rad_OCI_after_regression,
+                rad_OCI_before_regression,
+                rad_OCI_before_qm,
+                sf_pred,
+                sf,
+                save_folder=folder_output,
+                name = "plot_scatter")
+
+
+######################################
+##### PLOT region CDF and Histo ######
+######################################
+
+
+if plot_hist_cer:
+    print("\n== Plotting the CER histograms ...")
+
+    plot_multiple_histograms(
+            datasets=[rad_HARP2,rad_OCI_after_regression,rad_OCI_before_qm, rad_OCI_before_regression],
+            labels=['HARP2','OCI After Regression','OCI Before QM','OCI Before Regression'],
+            bins=100,
+            title='Histograms of CER ',
+            outline_only=True,
+            show_stats=False,
+            save_folder=folder_output,
+            name = 'plot_cer_histogram',
+            xtitle = 'CER (um)'
+        )
+    
+if plot_cdf_cer:
+    print("\n== Plotting the CER CDFs ...")
+    plot_multiple_cdfs_with_p(
+        datasets=[rad_HARP2,rad_OCI_after_regression,rad_OCI_before_qm, rad_OCI_before_regression],
+        labels=['HARP2','OCI After Regression','OCI Before QM','OCI Before Regression'],
+        bins=100,
+        title='Cumulative Distribution Functions of CER',
+        show_stats=False,
+        save_folder=folder_output,
+        name = "plot_cer_cdf",
+        xtitle = 'CER (um)'
+        )
+
+
+######################################
+##### PLOT error Histo ##############
+######################################
+if plot_hist_bias:
+    print("\n== Plotting the CER bias histograms ...")
+
+    plot_multiple_histograms(
+            datasets=[error_uncorr,error_before_reg,error_after_reg],
+            labels=['OCI Before QM','OCI Before Regression','OCI After Regression'],
+            bins=100,
+            title='Error Histogram ',
+            outline_only=True,
+            show_stats=False,
+            save_folder=r"Bias_Correction_Algorithm\output\regression",
+            name = "plot_histogram_cer_error",
+            xtitle = 'CER absolute error (um)'
+        )
 
 ################################################################
 ########## MAP OF DIFFERENCE BEFORE AND AFTER CORRECTION #######
 ################################################################
 
-print("\n== Plotting bias on a map ...")
 
 diff_uncorr = np.abs(paired_uncorr - paired_harp)
 diff_corr   = np.abs(paired_corr - paired_harp)
@@ -215,18 +216,209 @@ lon_list = [lon_plot_uncorr, lon_plot_corr]
 lat_list = [lat_plot_uncorr, lat_plot_corr]
 radius_list = [diff_uncorr, diff_corr]
 
-pixel_sizes = [5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2)))), 5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2))))]  
-titles = [f'Bias for Uncorrected {instrument}', f'Bias for Corrected {instrument}']
 
-plot_pixel_level(lon_list, 
-                 lat_list, 
-                 radius_list, 
-                 pixel_sizes, 
-                 titles, 
-                 lon_HARP2.min(), 
-                 lon_HARP2.max(), 
-                 lat_HARP2.min(), 
-                 lat_HARP2.max(),
-                 save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression",
-                 name = "Bias_uncorrected_and_corrected",
-                 bar_title = 'Absolute Difference in CER (um)')
+pixel_sizes = [5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2)))), 5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2))))]  
+titles = ['Bias for Uncorrected OCI', 'Bias for Corrected OCI']
+
+if plot_map_bias:
+    print("\n== Plotting bias on a map ...")
+
+    plot_pixel_level(lon_list, 
+                    lat_list, 
+                    radius_list, 
+                    pixel_sizes, 
+                    titles, 
+                    lon_HARP2.min(), 
+                    lon_HARP2.max(), 
+                    lat_HARP2.min(), 
+                    lat_HARP2.max(),
+                    save_folder=r"Bias_Correction_Algorithm\output\regression",
+                    name = "map_cer_bias",
+                    bar_title = 'Absolute Difference in CER (um) for test data')
+
+##################################################################
+########## MAP OF CER for CORRECTED, UNCORRECTED  ################
+##################################################################
+
+if plot_map_cer:
+    print("\n== Plotting CER on a map ...")
+
+    titles = ['CER Uncorrected OCI', 'CER Corrected OCI']
+    data_list = [paired_uncorr, paired_corr]
+    lon_list = [lon_plot_uncorr, lon_plot_corr]
+    lat_list = [lat_plot_uncorr, lat_plot_corr]
+
+    plot_pixel_level(lon_list, 
+                    lat_list, 
+                    data_list, 
+                    pixel_sizes, 
+                    titles, 
+                    lon_HARP2.min(), 
+                    lon_HARP2.max(), 
+                    lat_HARP2.min(), 
+                    lat_HARP2.max(),
+                    save_folder = r"Bias_Correction_Algorithm\output\regression",
+                    name = "map_cer",
+                    bar_title = 'CER (um) for test data')
+
+
+
+# ######################################
+# ##### PLOT region CDF and Histo ######
+# ######################################
+
+# print("\n== Plotting the histogram and CDF ...")
+
+# plot_multiple_histograms(
+#         datasets=[rad_HARP2,cer_after_reg,cer_before_qm, cer_before_reg],
+#         labels = ['HARP2', f' {instrument} After Regression',f' {instrument} Before QM',f' {instrument} Before Regression'],   
+#         bins=100,
+#         title='Historgram of Cloud Effective Radius ',
+#         outline_only=True,
+#         show_stats=False,
+#         save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression"
+#     )
+
+# plot_multiple_cdfs_with_p(
+#     datasets=[rad_HARP2,cer_after_reg,cer_before_qm, cer_before_reg],
+#     labels = ['HARP2', f' {instrument} After Regression',f' {instrument} Before QM',f' {instrument} Before Regression'],   
+#     bins=100,
+#     title='CDF of Cloud Effective Radius',
+#     show_stats=False,
+#     save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression"
+#     )
+
+
+
+# ################################################################
+# ########## COMPUTE DIFFERENCE BEFORE AND AFTER CORRECTION ######
+# ################################################################
+
+# print("\n== Computing comparison statistics ...\n")
+
+# #Aggregate data
+# agg_uncorr, counts_uncorr, mask_uncorr = aggregate_oci_to_harp2_radius(
+#     lat, lon, cer_before_qm,
+#     lat_HARP2, lon_HARP2, radius_km=5
+# )
+# agg_corr, counts_corr, mask_corr = aggregate_oci_to_harp2_radius(
+#     lat, lon, cer_after_reg,
+#     lat_HARP2, lon_HARP2, radius_km=5
+# )
+# agg_before_reg, counts_before_reg, mask_before_reg = aggregate_oci_to_harp2_radius(
+#     lat, lon, cer_before_reg,
+#     lat_HARP2, lon_HARP2, radius_km=5
+# )
+
+# # Valid HARP2 points with OCI coverage
+# valid_mask = mask_uncorr & mask_corr & mask_before_reg & ~np.isnan(rad_HARP2)
+# paired_harp = rad_HARP2[valid_mask]
+# paired_uncorr = agg_uncorr[valid_mask]
+# paired_corr = agg_corr[valid_mask]
+# paired_before_reg = agg_before_reg[valid_mask]
+
+
+
+# count_uncorr, rmse_uncorr, mae_uncorr, bias_uncorr, aare_uncorr, error_uncorr = print_pair_stats(paired_harp, paired_uncorr, f"Uncorrected {instrument} data")
+# count_before_reg, rmse_before_reg, mae_before_reg, bias_before_reg, aare_before_reg, error_before_reg = print_pair_stats(paired_harp, paired_before_reg, f"Corrected {instrument} Before Regression")
+# count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_pair_stats(paired_harp, paired_corr, f"Corrected {instrument} After Regression")
+
+
+# ################################################################
+# ########## SHOW CORRELATION WITH FEATURES BEFORE AND AFTER #######
+# ################################################################
+
+# # Cloud inhomogeneity
+# agg_chi, counts_chi, mask_chi= aggregate_oci_to_harp2_radius(
+#     lat, lon, chi,
+#     lat_HARP2, lon_HARP2, radius_km=5
+# )
+# agg_chi = agg_chi[valid_mask]
+# r_uncorr_chi, _ = pearsonr(agg_chi, error_uncorr)
+# r_corr_chi, _   = pearsonr(agg_chi, error_after_reg)
+
+# # Solar Zenith Angle
+# agg_sza, counts_sza, mask_sza= aggregate_oci_to_harp2_radius(
+#     lat, lon, sza,
+#     lat_HARP2, lon_HARP2, radius_km=5
+# )
+# agg_sza = agg_sza[valid_mask]
+# r_uncorr_sza, _ = pearsonr(agg_sza, error_uncorr)
+# r_corr_sza, _   = pearsonr(agg_sza, error_after_reg)
+
+# r_uncorr_cer, _ = pearsonr(paired_uncorr, error_uncorr)
+# r_corr_cer, _   = pearsonr(paired_uncorr, error_after_reg)
+# # plots
+
+# fig, ax = plt.subplots(1, 3, figsize=(12, 5))
+
+# # CHI
+# ax[0].scatter(agg_chi, error_uncorr,
+#               label=f'Uncorrected (r = {r_uncorr_chi:.3f})')
+# ax[0].scatter(agg_chi, error_after_reg,
+#               label=f'Corrected (r = {r_corr_chi:.3f})')
+# ax[0].legend(loc='upper left')
+# ax[0].set_xlabel("Cloud Inhomogeneity (-)")
+# ax[0].set_ylabel("Error (um)")
+# ax[0].set_title("Error vs Chi")
+
+# # SZA
+# ax[1].scatter(agg_sza, error_uncorr,
+#               label=f'Uncorrected (r = {r_uncorr_sza:.3f})')
+# ax[1].scatter(agg_sza, error_after_reg,
+#               label=f'Corrected (r = {r_corr_sza:.3f})')
+# ax[1].legend(loc='upper left')
+# ax[1].set_xlabel("Solar Zenith Angle (deg)")
+# ax[1].set_ylabel("Error (um)")
+# ax[1].set_title("Error vs SZA")
+
+# # raduncorr
+# ax[2].scatter(paired_uncorr, error_uncorr,
+#               label=f'Uncorrected (r = {r_uncorr_cer:.3f})')
+# ax[2].scatter(paired_uncorr, error_after_reg,
+#               label=f'Corrected (r = {r_corr_cer:.3f})')
+# ax[2].legend(loc='upper left')
+# ax[2].set_xlabel("Uncorrected CER (um)")
+# ax[2].set_ylabel("Error (um)")
+# ax[2].set_title("Error vs uncorrected CER")
+
+# # Layout
+# plt.tight_layout()
+# plt.show()
+
+
+
+# ################################################################
+# ########## MAP OF DIFFERENCE BEFORE AND AFTER CORRECTION #######
+# ################################################################
+
+# print("\n== Plotting bias on a map ...")
+
+# diff_uncorr = np.abs(paired_uncorr - paired_harp)
+# diff_corr   = np.abs(paired_corr - paired_harp)
+
+
+# lon_plot_uncorr = lon_HARP2[valid_mask]
+# lat_plot_uncorr = lat_HARP2[valid_mask]
+# lon_plot_corr = lon_HARP2[valid_mask]
+# lat_plot_corr = lat_HARP2[valid_mask]
+
+# lon_list = [lon_plot_uncorr, lon_plot_corr]
+# lat_list = [lat_plot_uncorr, lat_plot_corr]
+# radius_list = [diff_uncorr, diff_corr]
+
+# pixel_sizes = [5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2)))), 5 * 360/(2*np.pi*6371*np.cos(np.deg2rad(np.mean(lat_HARP2))))]  
+# titles = [f'Bias for Uncorrected {instrument}', f'Bias for Corrected {instrument}']
+
+# plot_pixel_level(lon_list, 
+#                  lat_list, 
+#                  radius_list, 
+#                  pixel_sizes, 
+#                  titles, 
+#                  lon_HARP2.min(), 
+#                  lon_HARP2.max(), 
+#                  lat_HARP2.min(), 
+#                  lat_HARP2.max(),
+#                  save_folder=r"C:\Users\andreap\Documents\GitHub\SRON\Bias_Correction_Algorithm\Output\Regression",
+#                  name = "Bias_uncorrected_and_corrected",
+#                  bar_title = 'Absolute Difference in CER (um)')
