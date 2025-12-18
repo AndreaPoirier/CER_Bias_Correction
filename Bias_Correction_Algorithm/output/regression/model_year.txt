@@ -4775,7 +4775,7 @@ Column_1=1589
 parameters:
 [boosting: gbdt]
 [objective: regression]
-[metric: l2]
+[metric: l2,rmse,l1]
 [tree_learner: serial]
 [device_type: cpu]
 [data_sample_strategy: bagging]

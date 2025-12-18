@@ -12,7 +12,6 @@ class TQDMProgress:
         self.pbar.update(1)
         if env.iteration + 1 == env.end_iteration:
             self.pbar.close()
-
 def scaling_factor_model_lgbm_train_test(
     X_train, y_train, X_test, y_test, 
     num_leaves=128,
@@ -20,62 +19,23 @@ def scaling_factor_model_lgbm_train_test(
     num_boost_round=250,
     progress_period=20,
     plot_metrics=True,
-    save_folder = "save_folder",
-    name = "name", 
+    save_folder="save_folder",
+    name="name",
 ):
-    """
-    Train and evaluate a LightGBM regression model for scaling factor prediction,
-    with optional metric plotting and tqdm-based progress tracking.
-
-    Parameters
-    ----------
-    X_train : array-like
-        Training feature matrix
-    y_train : array-like
-        Training target values
-    X_test : array-like
-        Test feature matrix
-    y_test : array-like
-        Test target values
-    num_leaves : int, optional
-        Maximum number of leaves in one tree
-    learning_rate : float, optional
-        Learning rate for boosting
-    num_boost_round : int, optional
-        Number of boosting iterations
-    progress_period : int, optional
-        Progress update period (unused, kept for compatibility)
-    plot_metrics : bool, optional
-        Whether to plot training and validation metrics
-    save_folder : str
-        Folder path where the metric plot is saved
-    name : str
-        Filename of the saved plot
-
-    Returns
-    -------
-    model : lightgbm.Booster
-        Trained LightGBM model
-    y_test_pred : array-like
-        Predictions on the test set
-    r2_train : float
-        R² score on the training set
-    r2_test : float
-        R² score on the test set
-    mae_test : float
-        Mean absolute error on the test set
-    rmse_test : float
-        Root mean squared error on the test set
-"""
+    import os
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import lightgbm as lgb
+    from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
     # ---- LightGBM datasets ----
     train_data = lgb.Dataset(X_train, label=y_train)
     valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
 
-    # ---- Parameters ----
+    # ---- Parameters (multiple built-in metrics) ----
     params = {
         "objective": "regression",
-        "metric": "l2",
+        "metric": ["l2", "rmse", "l1"],  # ✅ Added RMSE & MAE
         "learning_rate": learning_rate,
         "num_leaves": num_leaves,
         "feature_fraction": 0.9,
@@ -97,41 +57,185 @@ def scaling_factor_model_lgbm_train_test(
         num_boost_round=num_boost_round,
         callbacks=[
             lgb.early_stopping(stopping_rounds=50),
-            lgb.record_evaluation(evals_result),  # ✅ FIX
+            lgb.record_evaluation(evals_result),
             TQDMProgress(total_rounds=num_boost_round),
         ]
     )
 
     best_iter = model.best_iteration
 
-    # ---- Plot metric vs iterations ----
+    # ---- Plot metrics ----
     if plot_metrics:
-        metric_name = list(evals_result["train"].keys())[0]
+        fig, axs = plt.subplots(1, 3, figsize=(15, 4))
 
-        train_metric = evals_result["train"][metric_name]
-        valid_metric = evals_result["valid"][metric_name]
+        metric_map = {
+            "l2": "L2 (MSE)",
+            "rmse": "RMSE",
+            "l1": "MAE"
+        }
 
-        plt.figure(figsize=(8, 5))
-        plt.plot(train_metric, label=f"Train {metric_name}")
-        plt.plot(valid_metric, label=f"Validation {metric_name}")
-        plt.axvline(best_iter, linestyle="--", color="gray", label="Best iteration")
-        plt.xlabel("Boosting Iterations")
-        plt.ylabel(metric_name)
-        plt.title(f"LightGBM {metric_name} vs Iterations")
-        plt.legend()
-        plt.grid(True)
+        for ax, (metric, title) in zip(axs, metric_map.items()):
+            ax.plot(
+                evals_result["train"][metric][:best_iter],
+                label="Train"
+            )
+            ax.plot(
+                evals_result["valid"][metric][:best_iter],
+                label="Validation"
+            )
+            ax.axvline(best_iter, linestyle="--", color="gray")
+            ax.set_title(f"{title} vs Iterations")
+            ax.set_xlabel("Boosting Iterations")
+            ax.set_ylabel(title)
+            ax.legend()
+            ax.grid(True)
+
         plt.tight_layout()
+        os.makedirs(save_folder, exist_ok=True)
         try:
-            plt.savefig(rf"{save_folder}\{name}")
-        except:
-            print(name, "plot was not saves successfully. Check save path")
+            plt.savefig(os.path.join(save_folder, f"{name}.png"))
+        except Exception as e:
+            print(name, "metric plot not saved:", e)
         plt.show()
+
 
     # ---- Predictions ----
     y_train_pred = model.predict(X_train, num_iteration=best_iter)
     y_test_pred = model.predict(X_test, num_iteration=best_iter)
 
-    # ---- Metrics ----
+    # ---- Final metrics ----
+    r2_train = r2_score(y_train, y_train_pred)
+    r2_test = r2_score(y_test, y_test_pred)
+    mae_test = mean_absolute_error(y_test, y_test_pred)
+    rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
+
+    return model, y_test_pred, r2_train, r2_test, mae_test, rmse_test
+def scaling_factor_model_lgbm_train_test(
+    X_train, y_train, X_test, y_test, 
+    num_leaves=128,
+    learning_rate=0.01,
+    num_boost_round=250,
+    progress_period=20,
+    plot_metrics=True,
+    save_folder="save_folder",
+    name="name",
+):
+    import os
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import lightgbm as lgb
+    from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+    os.makedirs(save_folder, exist_ok=True)
+
+    # ---- LightGBM datasets ----
+    train_data = lgb.Dataset(X_train, label=y_train)
+    valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
+
+    # ---- Parameters ----
+    params = {
+        "objective": "regression",
+        "metric": ["l2", "rmse", "l1"],  # L2, RMSE, MAE
+        "learning_rate": learning_rate,
+        "num_leaves": num_leaves,
+        "feature_fraction": 0.9,
+        "bagging_fraction": 0.8,
+        "bagging_freq": 1,
+        "min_data_in_leaf": 50,
+        "verbose": -1,
+        "force_col_wise": True
+    }
+
+    evals_result = {}
+
+    # ---- Train model ----
+    model = lgb.train(
+        params,
+        train_data,
+        valid_sets=[train_data, valid_data],
+        valid_names=["train", "valid"],
+        num_boost_round=num_boost_round,
+        callbacks=[
+            lgb.early_stopping(stopping_rounds=50),
+            lgb.record_evaluation(evals_result),
+            TQDMProgress(total_rounds=num_boost_round),
+        ]
+    )
+
+    best_iter = model.best_iteration
+
+    # ================= METRICS + TREE DIAGNOSTICS =================
+    if plot_metrics:
+
+        # ---- Metrics vs iteration ----
+        fig, axs = plt.subplots(1, 3, figsize=(15, 4))
+
+        metric_map = {
+            "l2": "L2 (MSE)",
+            "rmse": "RMSE",
+            "l1": "MAE"
+        }
+
+        for ax, (metric, title) in zip(axs, metric_map.items()):
+            ax.plot(evals_result["train"][metric][:best_iter], label="Train")
+            ax.plot(evals_result["valid"][metric][:best_iter], label="Validation")
+            ax.axvline(best_iter, linestyle="--", color="gray")
+            ax.set_title(f"{title} vs Iterations")
+            ax.set_xlabel("Boosting Iterations")
+            ax.set_ylabel(title)
+            ax.legend()
+            ax.grid(True)
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(save_folder, f"plot_metrics_vs_iteration.png"))
+        plt.show()
+
+        # ---- Tree diagnostics ----
+        dump = model.dump_model()
+        trees = dump["tree_info"]
+
+        tree_depths = []
+        tree_leaves = []
+
+        def traverse(node, depth=0):
+            if "split_index" not in node:
+                return depth, 1
+            ld, ll = traverse(node["left_child"], depth + 1)
+            rd, rl = traverse(node["right_child"], depth + 1)
+            return max(ld, rd), ll + rl
+
+        for tree in trees:
+            depth, leaves = traverse(tree["tree_structure"])
+            tree_depths.append(depth)
+            tree_leaves.append(leaves)
+
+        iters = np.arange(1, len(tree_depths) + 1)
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+
+        axs[0].plot(iters, tree_depths)
+        axs[0].set_title("Tree Depth vs Boosting Iteration")
+        axs[0].set_xlabel("Iteration")
+        axs[0].set_ylabel("Tree Depth")
+        axs[0].grid(True)
+
+        axs[1].plot(iters, tree_leaves)
+        axs[1].set_title("Leaves per Tree vs Boosting Iteration")
+        axs[1].set_xlabel("Iteration")
+        axs[1].set_ylabel("Number of Leaves")
+        axs[1].grid(True)
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(save_folder, f"plot_tree_diagnostics.png"))
+        plt.show()
+
+    # ================= END DIAGNOSTICS =================
+
+    # ---- Predictions ----
+    y_train_pred = model.predict(X_train, num_iteration=best_iter)
+    y_test_pred = model.predict(X_test, num_iteration=best_iter)
+
+    # ---- Final metrics ----
     r2_train = r2_score(y_train, y_train_pred)
     r2_test = r2_score(y_test, y_test_pred)
     mae_test = mean_absolute_error(y_test, y_test_pred)
