@@ -407,3 +407,54 @@ def plot_scatter(rad_OCI_after_regression,
     except:
         print(name, "plot was not saves successfully. Check save path")
     plt.show()
+
+
+
+def plot_residual_vs_variable(variables, labels, paired_harp, paired_corr, paired_uncorr, name, folder):
+    # Residuals
+    residuals_after_correction = np.abs(paired_harp - paired_corr)
+    residuals_before_correction = np.abs(paired_harp - paired_uncorr)
+
+    # Create figure
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    axes = axes.flatten()
+
+    # Plot each variable with R² and avg residual for before and after correction
+    for i, (var, label) in enumerate(zip(variables, labels)):
+        # Linear fit for before correction
+        coef_before = np.polyfit(var, residuals_before_correction, 1)
+        fit_line_before = np.polyval(coef_before, var)
+        r2_before = r2_score(residuals_before_correction, fit_line_before)
+        avg_res_before = np.mean(residuals_before_correction)
+        
+        # Linear fit for after correction
+        coef_after = np.polyfit(var, residuals_after_correction, 1)
+        fit_line_after = np.polyval(coef_after, var)
+        r2_after = r2_score(residuals_after_correction, fit_line_after)
+        avg_res_after = np.mean(residuals_after_correction)
+        
+        # Scatter plots
+        axes[i].scatter(var, residuals_before_correction, alpha=0.5, s=10, color='r', label='Uncorrected')
+        axes[i].scatter(var, residuals_after_correction, alpha=0.5, s=10, color='b', label='Corrected')
+        
+        # Fit lines
+        axes[i].plot(var, fit_line_before, color='r', linewidth=1)
+        axes[i].plot(var, fit_line_after, color='b', linewidth=1)
+        
+        # Labels with R² and average residual
+        axes[i].set_xlabel(
+            f"{label}\n"
+            f"Before: R²={r2_before:.2f}, Avg Resid={avg_res_before:.2f}\n"
+            f"After:  R²={r2_after:.2f}, Avg Resid={avg_res_after:.2f}"
+        )
+        axes[i].set_ylabel('Absolute Aggregated Residuals ')
+        axes[i].grid(True)
+        axes[i].legend()
+
+    plt.tight_layout()
+    plt.suptitle('Residuals vs OCI Aggregated Variables: Before and After Correction', fontsize=18, y=1.02)
+    try:
+        plt.savefig(rf"{folder}\{name}")
+    except:
+        print(name, "plot was not saves successfully. Check save path")
+    plt.show()

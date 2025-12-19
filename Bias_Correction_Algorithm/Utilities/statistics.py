@@ -426,3 +426,9 @@ def calculate_shap_with_progress(model, data, feature_names=None, batch_size=100
     # FIX: Use the passed list of names instead of data.columns
     return shap.Explanation(combined_values, base_values=combined_base, data=combined_data, feature_names=feature_names)
 
+def predict_with_tqdm(model, X, batch_size=100_000):
+    preds = []
+    for i in tqdm(range(0, len(X), batch_size), desc="Predicting"):
+        batch = X[i:i + batch_size]
+        preds.append(model.predict(batch))
+    return np.concatenate(preds)

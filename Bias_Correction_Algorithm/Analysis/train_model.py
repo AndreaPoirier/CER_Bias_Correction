@@ -60,7 +60,7 @@ print(f"Loading OCI processed data from {processed_data_file}")
 print(f"Loading HARP2 (for comparison) data from {processed_data_file}")
 print(f"Saving outputs (plots, model ...) to {folder_train}")
 print("========================================================================")
-print(f"Size of training data: {len(lat)}")
+print(f"Size of training data: {len(lat):,}")
 print(f"Features used in training {variables_names}")
 print("========================================================================")
 print("Plotting the following:\n")
@@ -156,7 +156,7 @@ try:
     model.save_model(save_path)
 
 except Exception as e:
-    print(f"Training failed: {e}")
+    print(f"Training failed, error: {e}")
 with h5py.File(results_file, "a") as f:
     if "names" in f:
         del f["names"]
