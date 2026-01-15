@@ -23,10 +23,6 @@ with h5py.File(processed_data_file, 'r') as f:
 
     cloud_coverage = f['cloud_coverage'][:]
     cer_16 = f['rad_uncorrected'][:]
-    cer_21 = f['cer_21'][:]
-    cer_22 = f['cer_22'][:]
-    cth = f['cth'][:]
-    cwp = f['cwp'][:]
     sza = f['sza'][:]
     chi = f['chi'][:]
     cot = f['cot'][:]
@@ -49,8 +45,8 @@ plot_corr_analysis = True
 plot_residuals = True
 
 # Define variables to be tried in the regression
-features = [cer_16, cer_21, cer_22, sza, chi, cloud_coverage, cot, cth, cwp]
-features_names = ["CER 16", "CER 21","CER 22", "SZA","Chi","Cloud Coverage","COT","CTH","CWP"]
+features = [cer_16, sza, chi, cloud_coverage, cot]
+features_names = ["CER 16", "SZA","Chi","Cloud Coverage","COT"]
 
 X_all = np.column_stack(features)
 
@@ -91,6 +87,8 @@ if plot_scatter:
     print("- Correlation analysis")
 if plot_residuals:
     print("- Residuals vs variables plot before and after correction")
+
+
 starting_code()
 
 
@@ -135,15 +133,6 @@ agg_cloud_cov, counts_cloud_cov, mask_cloud_cov = aggregate_oci_to_harp2_radius(
     lat_HARP2, lon_HARP2, radius_km=5
 )
 
-agg_cwp, counts_cwp, mask_cwp = aggregate_oci_to_harp2_radius(
-    lat, lon, cwp,
-    lat_HARP2, lon_HARP2, radius_km=5
-)
-
-agg_cth, counts_cth, mask_cth = aggregate_oci_to_harp2_radius(
-    lat, lon, cth,
-    lat_HARP2, lon_HARP2, radius_km=5
-)
 
 agg_cot, counts_cot, mask_cot = aggregate_oci_to_harp2_radius(
     lat, lon, cot,
@@ -153,7 +142,7 @@ agg_cot, counts_cot, mask_cot = aggregate_oci_to_harp2_radius(
 # Combine all masks to select valid HARP2 points with OCI coverage
 valid_mask = (
     mask_uncorr & mask_corr & mask_before_reg & ~np.isnan(rad_HARP2) &
-    mask_sza & mask_chi & mask_cloud_cov & mask_cwp & mask_cth & mask_cot
+    mask_sza & mask_chi & mask_cloud_cov  & mask_cot
 )
 
 # Apply mask to all paired variables
@@ -165,8 +154,6 @@ paired_before_reg = agg_before_reg[valid_mask]
 paired_sza = agg_sza[valid_mask]
 paired_chi = agg_chi[valid_mask]
 paired_cloud_cov = agg_cloud_cov[valid_mask]
-paired_cwp = agg_cwp[valid_mask]
-paired_cth = agg_cth[valid_mask]
 paired_cot = agg_cot[valid_mask]
 
 # Calculate and print stats
@@ -198,7 +185,7 @@ if plot_hist_cer:
     print("\n== Plotting the CER histograms ...")
 
     plot_multiple_histograms(
-            datasets=[rad_HARP2,rad_OCI_after_regression,rad_OCI_before_qm, rad_OCI_before_regression],
+            datasets=[rad_HARP2[rad_HARP2<30],rad_OCI_after_regression[rad_OCI_after_regression<30],rad_OCI_before_qm[rad_OCI_before_qm<30], rad_OCI_before_regression[rad_OCI_before_regression<30]],
             labels=['HARP2','OCI After Regression','OCI Before QM','OCI Before Regression'],
             bins=100,
             title='Histograms of CER ',
@@ -306,8 +293,8 @@ if plot_map_cer:
 #############################################
 
 if plot_residuals:
-    variables = [paired_sza, paired_chi, paired_cloud_cov, paired_cwp, paired_cth, paired_cot]
-    labels = ['SZA', 'CHI', 'Cloud Coverage', 'CWP', 'CTH', 'COT']
+    variables = [paired_sza, paired_chi, paired_cloud_cov, paired_cot]
+    labels = ['SZA', 'CHI', 'Cloud Coverage', 'COT']
     plot_residual_vs_variable(variables, 
                               labels, 
                               paired_harp, 

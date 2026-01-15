@@ -48,8 +48,8 @@ plot_corr_analysis = True
 plot_l2_it = True
 
 # Define variables to be tried in the regression
-variables = [cer_16, cer_21, cer_22, sza, chi, cloud_coverage, cot, cth, cwp]
-variables_names = ["CER 16", "CER 21","CER 22", "SZA","Chi","Cloud Coverage","COT","CTH","CWP"]
+variables = [cer_16, sza, chi, cloud_coverage, cot ]
+variables_names = ["CER 16", "SZA","Chi","Cloud Coverage","COT"]
 
 print("===== TRAIN MACHINE LEARNING REGRESSOR  ======")
 description_of_script = """This script takes the processed data from processed_data.h5 and uses it to train the LightGBM Model. 

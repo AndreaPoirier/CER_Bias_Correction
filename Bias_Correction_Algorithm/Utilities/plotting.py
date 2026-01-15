@@ -210,6 +210,7 @@ def plot_multiple_histograms(
     plt.title(title, fontsize=14)
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.legend(fontsize=10)
+    plt.xlim(0,30)
     plt.tight_layout()
     try:
         plt.savefig(rf"{save_folder}\{name}")
@@ -410,51 +411,115 @@ def plot_scatter(rad_OCI_after_regression,
 
 
 
-def plot_residual_vs_variable(variables, labels, paired_harp, paired_corr, paired_uncorr, name, folder):
-    # Residuals
-    residuals_after_correction = np.abs(paired_harp - paired_corr)
-    residuals_before_correction = np.abs(paired_harp - paired_uncorr)
 
-    # Create figure
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    axes = axes.flatten()
 
-    # Plot each variable with R² and avg residual for before and after correction
+def plot_residual_vs_variable(
+    variables, labels,
+    paired_harp, paired_corr, paired_uncorr,
+    name, folder
+):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import Normalize
+    from sklearn.metrics import r2_score
+
+    residuals_after = np.abs(paired_harp - paired_corr)
+    residuals_before = np.abs(paired_harp - paired_uncorr)
+
+    n_vars = len(variables)
+    gridsize = 40
+
+    fig, axes = plt.subplots(
+        nrows=n_vars, ncols=2,
+        figsize=(12, 4.5 * n_vars),
+        sharey=True,
+        constrained_layout=True
+    )
+
+    if n_vars == 1:
+        axes = np.array([axes])
+
+    # ---- Collect ALL hexbin counts ----
+    all_counts = []
+
+    def collect_counts(x, y):
+        counts, _, _ = np.histogram2d(x, y, bins=gridsize)
+        return counts[counts > 0]
+
+    for var in variables:
+        all_counts.append(collect_counts(var, residuals_before))
+        all_counts.append(collect_counts(var, residuals_after))
+
+    all_counts = np.concatenate(all_counts)
+
+    # ---- Percentile-based normalization ----
+    vmin = np.percentile(all_counts, 25)
+    vmax = np.percentile(all_counts, 75)
+
+    # Safety guard
+    if vmin == vmax:
+        vmin = 1
+        vmax = all_counts.max()
+
+    norm = Normalize(vmin=vmin, vmax=vmax, clip=True)
+
+    # ---- Plot ----
     for i, (var, label) in enumerate(zip(variables, labels)):
-        # Linear fit for before correction
-        coef_before = np.polyfit(var, residuals_before_correction, 1)
-        fit_line_before = np.polyval(coef_before, var)
-        r2_before = r2_score(residuals_before_correction, fit_line_before)
-        avg_res_before = np.mean(residuals_before_correction)
-        
-        # Linear fit for after correction
-        coef_after = np.polyfit(var, residuals_after_correction, 1)
-        fit_line_after = np.polyval(coef_after, var)
-        r2_after = r2_score(residuals_after_correction, fit_line_after)
-        avg_res_after = np.mean(residuals_after_correction)
-        
-        # Scatter plots
-        axes[i].scatter(var, residuals_before_correction, alpha=0.5, s=10, color='r', label='Uncorrected')
-        axes[i].scatter(var, residuals_after_correction, alpha=0.5, s=10, color='b', label='Corrected')
-        
-        # Fit lines
-        axes[i].plot(var, fit_line_before, color='r', linewidth=1)
-        axes[i].plot(var, fit_line_after, color='b', linewidth=1)
-        
-        # Labels with R² and average residual
-        axes[i].set_xlabel(
-            f"{label}\n"
-            f"Before: R²={r2_before:.2f}, Avg Resid={avg_res_before:.2f}\n"
-            f"After:  R²={r2_after:.2f}, Avg Resid={avg_res_after:.2f}"
-        )
-        axes[i].set_ylabel('Absolute Aggregated Residuals ')
-        axes[i].grid(True)
-        axes[i].legend()
+        ax_b = axes[i, 0]
+        ax_a = axes[i, 1]
 
-    plt.tight_layout()
-    plt.suptitle('Residuals vs OCI Aggregated Variables: Before and After Correction', fontsize=18, y=1.02)
+        # Fits
+        fit_b = np.polyval(np.polyfit(var, residuals_before, 1), var)
+        fit_a = np.polyval(np.polyfit(var, residuals_after, 1), var)
+
+        r2_b = r2_score(residuals_before, fit_b)
+        r2_a = r2_score(residuals_after, fit_a)
+
+        hb_b = ax_b.hexbin(
+            var, residuals_before,
+            gridsize=gridsize,
+            mincnt=1,
+            cmap='Reds',
+            norm=norm
+        )
+
+        hb_a = ax_a.hexbin(
+            var, residuals_after,
+            gridsize=gridsize,
+            mincnt=1,
+            cmap='Blues',
+            norm=norm
+        )
+
+        ax_b.plot(var, fit_b, color='black', linewidth=1)
+        ax_a.plot(var, fit_a, color='black', linewidth=1)
+
+        ax_b.set_title(f"{label} – Uncorrected")
+        ax_a.set_title(f"{label} – Corrected")
+
+        ax_b.set_xlabel(label)
+        ax_a.set_xlabel(label)
+        ax_b.set_ylabel("Absolute Aggregated Residuals")
+
+        ax_b.grid(True)
+        ax_a.grid(True)
+
+    # ---- Shared colorbars ----
+    cbar_b = fig.colorbar(hb_b, ax=axes[:, 0])
+    cbar_b.set_label("Point Density (25–75 percentile)")
+
+    cbar_a = fig.colorbar(hb_a, ax=axes[:, 1])
+    cbar_a.set_label("Point Density (25–75 percentile)")
+
+    plt.suptitle(
+        "Residuals vs OCI Aggregated Variables",
+        fontsize=18
+    )
+    fig.set_constrained_layout_pads(w_pad=0.05, h_pad=0.05)
+
     try:
         plt.savefig(rf"{folder}\{name}")
-    except:
-        print(name, "plot was not saves successfully. Check save path")
+    except Exception as e:
+        print(name, "plot was not saved successfully.", e)
+
     plt.show()

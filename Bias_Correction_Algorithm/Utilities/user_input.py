@@ -36,7 +36,7 @@ folder_train = r"Bias_Correction_Algorithm\output\regression"
 ########## Definition of Area of Interest #########
 
 # Option 1
-center_lat, center_lon = 54, -34
+center_lat, center_lon = -50, -145
 dx = 5
 lat_min, lat_max = center_lat - dx, center_lat + dx
 lon_min, lon_max = center_lon - dx, center_lon + dx 
@@ -48,11 +48,11 @@ world_data = False
 ########## Definition of Temporal Range ##########
 
 # Option 1: Analyse all available time
-day_data = False
+day_data = True
 
 # Option 2: Analyse n_days after start_day
 n_days = 1
-start_day = '20250807'  # Format: 'YYYYMMDD'
+start_day = '20240701'  # Format: 'YYYYMMDD'
 
 ########## Definition of Other Analysis Options ##########
 
