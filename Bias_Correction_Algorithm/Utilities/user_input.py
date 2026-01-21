@@ -23,7 +23,7 @@ folder_path_MODIS = r"D:\Data\MODIS\MYD06_L2_6.1-20251211_143824"
 
 # Path to store results from get_processed_data.py
 folder_path_saved_processed_data = r"Bias_Correction_Algorithm\output\processed_data"
-
+folder_path_saved_processed_data = r"C:\Users\andreap\Documents\Cloud_Effective_Radius_Bias_Correction_Algorithm\Bias_Correction_Algorithm\Data_Processing\Processed_Data\Year_Data"
 # Path for output of regression and SHAP
 folder_output = r"Bias_Correction_Algorithm\output\region"
 

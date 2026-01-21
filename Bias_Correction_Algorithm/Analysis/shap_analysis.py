@@ -6,6 +6,7 @@ from utilities.plotting import *
 from utilities.statistics import *
 from import_lib import *
 
+# Set to True plot to be shown
 plot_beeswarm = True
 plot_bar = True
 plot_interaction = True
@@ -30,6 +31,7 @@ if plot_waterfall:
     print("- Waterfall plot for a sample prediction")
 print("========================================================================")
 
+# Give option or not to run code
 starting_code()
 
 # Loading train data
@@ -50,7 +52,7 @@ if X_train.shape[0] > n_data:
 else:
     print("=== No sampling.")
 
-# Loading features names
+# Loading features names, R2 and MAE
 results_file = os.path.join(folder_train, "regression_results_year.h5")
 with h5py.File(results_file, "r") as f:
     feature_list = list(f["names"].asstr()[:])
@@ -62,7 +64,7 @@ r2_max = np.max(r2_all)
 print("\n=== Calculating SHAP values with the following features\n")
 print(feature_list)
 
-# Call the function with the new feature_names argument
+# Computes shap values in blocks and progress bar
 shap_values = calculate_shap_with_progress(model, X_train, feature_names=feature_list, batch_size=5000)
 
 ##############################

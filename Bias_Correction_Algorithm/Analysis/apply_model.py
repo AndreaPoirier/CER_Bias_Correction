@@ -6,15 +6,23 @@ from utilities.plotting import *
 from utilities.statistics import *
 from import_lib import *
 
-
+# Set to True plot to be shown
+plot_map_cer = True
+plot_hist_cer = True
+plot_cdf_cer = True
+plot_map_bias = True
+plot_hist_bias = True
+plot_corr_analysis = True
+plot_residuals = True
 
 ##################################
 ########## LOADING DATA ##########
 ##################################
 
-# Load all data into numpy arrays
+# Defining where the processed data file is
 processed_data_file = folder_path_saved_processed_data + '\processed_data.h5'
 
+# Opening processed_data.h5
 with h5py.File(processed_data_file, 'r') as f:
 
     # OCI/MODIS
@@ -36,15 +44,8 @@ with h5py.File(processed_data_file, 'r') as f:
     # Scaling Factor
     sf = f['sf'][:]
 
-plot_map_cer = True
-plot_hist_cer = True
-plot_cdf_cer = True
-plot_map_bias = True
-plot_hist_bias = True
-plot_corr_analysis = True
-plot_residuals = True
 
-# Define variables to be tried in the regression
+# Define model features and their name
 features = [cer_16, sza, chi, cloud_coverage, cot]
 features_names = ["CER 16", "SZA","Chi","Cloud Coverage","COT"]
 
@@ -54,7 +55,7 @@ X_all = np.column_stack(features)
 ##### Apply Model to Test Region #######
 ########################################
 
-
+# Load pre-trained model
 os.makedirs(folder_train, exist_ok=True) 
 save_path = os.path.join(folder_train, "model_year.txt")  
 loaded_model = lgb.Booster(model_file=save_path)
@@ -88,12 +89,13 @@ if plot_scatter:
 if plot_residuals:
     print("- Residuals vs variables plot before and after correction")
 
-
+# Give option or not to run code
 starting_code()
 
-
+# Predict scaling factor (sf) for the region in batches showing the progress bar
 sf_pred = predict_with_tqdm(loaded_model, X_all)
 
+# CER uncorrected, CER after regression, CER after QM but before regression 
 rad_OCI_before_qm = X_all[:, 0]
 rad_OCI_after_regression = X_all[:, 0] * sf_pred
 rad_OCI_before_regression = X_all[:, 0] * sf
@@ -104,7 +106,7 @@ rad_OCI_before_regression = X_all[:, 0] * sf
 
 print("\n== Computing comparison statistics ...\n")
 
-#Aggregate data
+# Aggregate OCI data to HARP2 grid
 agg_uncorr, counts_uncorr, mask_uncorr = aggregate_oci_to_harp2_radius(
     lat, lon, rad_OCI_before_qm,
     lat_HARP2, lon_HARP2, radius_km=5
@@ -117,23 +119,18 @@ agg_before_reg, counts_before_reg, mask_before_reg = aggregate_oci_to_harp2_radi
     lat, lon, rad_OCI_before_regression,
     lat_HARP2, lon_HARP2, radius_km=5
 )
-
 agg_sza, counts_sza, mask_sza = aggregate_oci_to_harp2_radius(
     lat, lon, sza,
     lat_HARP2, lon_HARP2, radius_km=5
 )
-
 agg_chi, counts_chi, mask_chi = aggregate_oci_to_harp2_radius(
     lat, lon, chi,
     lat_HARP2, lon_HARP2, radius_km=5
 )
-
 agg_cloud_cov, counts_cloud_cov, mask_cloud_cov = aggregate_oci_to_harp2_radius(
     lat, lon, cloud_coverage,
     lat_HARP2, lon_HARP2, radius_km=5
 )
-
-
 agg_cot, counts_cot, mask_cot = aggregate_oci_to_harp2_radius(
     lat, lon, cot,
     lat_HARP2, lon_HARP2, radius_km=5
@@ -156,7 +153,7 @@ paired_chi = agg_chi[valid_mask]
 paired_cloud_cov = agg_cloud_cov[valid_mask]
 paired_cot = agg_cot[valid_mask]
 
-# Calculate and print stats
+# Calculate and print error metric for CER uncorrected, CER after regression, CER after QM but before regression 
 count_uncorr, rmse_uncorr, mae_uncorr, bias_uncorr, aare_uncorr, error_uncorr = print_pair_stats(paired_harp, paired_uncorr, "Uncorrected OCI data")
 count_before_reg, rmse_before_reg, mae_before_reg, bias_before_reg, aare_before_reg, error_before_reg = print_pair_stats(paired_harp, paired_before_reg, "Corrected OCI Before Regression")
 count_corr, rmse_corr, mae_corr, bias_corr, aare_corr, error_after_reg = print_pair_stats(paired_harp, paired_corr, "Corrected OCI After Regression")

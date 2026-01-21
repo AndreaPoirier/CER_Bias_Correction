@@ -6,15 +6,23 @@ from utilities.plotting import *
 from utilities.statistics import *
 from import_lib import *
 
-
+# Set to True plot to be shown
+plot_map_cer = True
+plot_hist_cer = True
+plot_cdf_cer = True
+plot_map_bias = True
+plot_hist_bias = True
+plot_corr_analysis = True
+plot_l2_it = True
 
 ##################################
 ########## LOADING DATA ##########
 ##################################
 
-# Load all data into numpy arrays
+# Defining where the processed data file is
 processed_data_file = folder_path_saved_processed_data + '\processed_data.h5'
 
+# Opening processed_data.h5
 with h5py.File(processed_data_file, 'r') as f:
 
     # OCI/MODIS
@@ -39,15 +47,9 @@ with h5py.File(processed_data_file, 'r') as f:
     # Scaling Factor
     sf = f['sf'][:]
 
-plot_map_cer = True
-plot_hist_cer = True
-plot_cdf_cer = True
-plot_map_bias = True
-plot_hist_bias = True
-plot_corr_analysis = True
-plot_l2_it = True
 
-# Define variables to be tried in the regression
+
+# Define model features and their name
 variables = [cer_16, sza, chi, cloud_coverage, cot ]
 variables_names = ["CER 16", "SZA","Chi","Cloud Coverage","COT"]
 
@@ -79,6 +81,7 @@ if plot_scatter:
 if plot_l2_it:
     print("- LightGBM model training l2 vs iterations") 
 
+# Give option or not to run code
 starting_code()
 
 
@@ -88,7 +91,7 @@ starting_code()
 #######################################
 
 
-
+# Splits train/test data using regional bins 
 train_idx, test_idx = split_train_test_data(sf,lat,lon)
 
 y_train = sf[train_idx]
@@ -121,20 +124,23 @@ with h5py.File(results_file, "w") as f:
 ##### TRAIN USING ALL VARIABLES #######
 #######################################
 
-# Use ALL variables (single combination)
+# Use ALL variables 
 sel_vars = list(range(len(variables)))
 names = variables_names
 
+# Separating train and test matrix
 X_train = X_train_full[:, sel_vars]
 X_test  = X_test_full[:, sel_vars]
 
+
 try:
+    # Training
     model, y_pred_test, r2_train, r2_test, mae_test, rmse_test = scaling_factor_model_lgbm_train_test(
         X_train, y_train, X_test, y_test,
         plot_metrics=plot_l2_it, save_folder=folder_train, name = "plot_l2_vs_iterations"
     )
     
-   
+   # Write results
     with h5py.File(results_file, "a") as f:
         f["names"].resize((1,))
         f["r2_test"].resize((1,))
@@ -157,6 +163,7 @@ try:
 
 except Exception as e:
     print(f"Training failed, error: {e}")
+
 with h5py.File(results_file, "a") as f:
     if "names" in f:
         del f["names"]
@@ -188,6 +195,7 @@ print(f"R2 Test {r2_all[0]:.4f}")
 ##### APPLY CORRECTION ################
 #######################################
 
+# CER uncorrected, CER after regression, CER after QM but before regression 
 rad_OCI_before_qm = X_test_full[:, 0]
 rad_OCI_after_regression = X_test_full[:, 0] * best_pred
 rad_OCI_before_regression = X_test_full[:, 0] * sf_test
