@@ -20,7 +20,7 @@ all_files = [f for f in os.listdir(folder_path_HARP2) if f.endswith(".nc")]
 n_total = len(all_files)
 variables_to_save = ["radius", "cot", "lat", "lon"]
 
-# Printing of parameters 
+# Printing of run parameters 
 print("==== GETTING HARP2 DATA LOCALLY ====")
 description_of_script = """This script takes the locally saved HARP2 .nc files and processes such that it can be used in get_processed_data.py. The output is the file HARP2_data.h5.
 """
@@ -53,13 +53,17 @@ starting_code()
 #### MAIN LOOP #######
 ######################
 
+# Opening .h5 file where results will be saved
 with h5py.File(h5_path, "w") as hf:
+
+    # Create dataset for each variable to be saved
     dsets = {}
     for key in variables_to_save:
         dsets[key] = hf.create_dataset(
             key, shape=(0,), maxshape=(None,), dtype="float32", compression="gzip"
         )
-    # date dataset
+        
+    # Create date dataset
     dsets["date"] = hf.create_dataset(
         "date", shape=(0,), maxshape=(None,), dtype="int64", compression="gzip"
     )
@@ -85,14 +89,14 @@ with h5py.File(h5_path, "w") as hf:
     ###########################
 
     n_runs = 0
+    # Iterating through all locally saved .nc files insider folder
     for filename in sampled_files:
 
-        # Removing files not at correct date (if day_data
+        # Removing files not at correct date (if day_data)
         if day_data and not is_within_n_days(filename, n_days, start_day): 
             continue
         
         # Printing progress
-        file_path = os.path.join(folder_path_HARP2, filename)
         n_runs += 1
         if n_runs % 50 == 0:
             print(f"Processed {n_runs}/{n_sample} files...")
@@ -102,6 +106,7 @@ with h5py.File(h5_path, "w") as hf:
         file_date = int(basename[:8])
 
         # Opening file
+        file_path = os.path.join(folder_path_HARP2, filename)
         with Dataset(file_path, mode="r") as nc:
 
             # Access groups
@@ -134,6 +139,8 @@ with h5py.File(h5_path, "w") as hf:
                 discontinuity
             ])
             mask |= discontinuity
+            
+            # Mask ice clouds
             mask |= (radius >= 30) | (radius < 0)
 
             valid = ~mask

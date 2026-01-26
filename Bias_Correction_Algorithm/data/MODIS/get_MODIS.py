@@ -7,16 +7,18 @@ from utilities.processing import *
 from utilities.plotting import *
 from utilities.statistics import *
 from import_lib import *
-# -----------------------------
-# USER SETTINGS
-# -----------------------------
 
+###########################
+#### USER INTERFACE #######
+###########################
+
+# File path, variables to save, and file count
 h5_path = os.path.join(folder_path_saved_processed_data, "MODIS_data.h5")
 variables_to_save = ["radius", "cot", "sza", "lat", "lon", "cloud_coverage"]
 all_files = [f for f in os.listdir(folder_path_MODIS) if f.endswith(".hdf")]
 n_total = len(all_files)
 
-# Printing of parameters 
+# Printing of run parameters 
 print("==== GETTING MODIS DATA LOCALLY ====")
 print(f"Loading data from {folder_path_MODIS}")
 print(f"Saving MODIS data to {folder_path_saved_processed_data}\MODIS_data.h5")
@@ -35,21 +37,23 @@ print("========================================================================"
 starting_code()
 
 
+######################
+#### MAIN LOOP #######
+######################
 
-# -----------------------------
-# CREATE OUTPUT HDF5
-# -----------------------------
 os.makedirs(os.path.dirname(h5_path), exist_ok=True)
 
+# Opening .h5 file where results will be saved
 with h5py.File(h5_path, "w") as hf:
 
-    # Create extendable datasets
+    # Create dataset for each variable to be saved
     dsets = {}
     for key in ["radius", "cot", "sza", "lat", "lon", "cloud_coverage"]:
         dsets[key] = hf.create_dataset(
             key, shape=(0,), maxshape=(None,), dtype="float32", compression="gzip"
         )
 
+    # Create date dataset
     dsets["date"] = hf.create_dataset(
         "date", shape=(0,), maxshape=(None,), dtype="int64", compression="gzip"
     )
@@ -58,7 +62,10 @@ with h5py.File(h5_path, "w") as hf:
     n_total = len(all_files)
     n_runs = 0
 
-    # FILE SAMPLING
+    ###########################
+    #### FILE SAMPLING ########
+    ###########################
+    
     if sample_fraction_files == 1:
         print("Using all files (no sampling).")
     else:
@@ -67,27 +74,25 @@ with h5py.File(h5_path, "w") as hf:
         all_files = random.sample(all_files, k=n_sample)
         print(f"Using {n_sample} of {n_total} files ({n_sample/n_total:.1%})")
 
-
-    # -----------------------------------------
-    # DEFINE CLOUD COVERAGE GRID
-    # -----------------------------------------
+    # Define cloud coverage grid
     box_size = 0.5
     lat_bins = np.arange(-90, 90 + box_size, box_size)
     lon_bins = np.arange(-180, 180 + box_size, box_size)
 
-    # -----------------------------------------
-    # FILE LOOP
-    # -----------------------------------------
+    ###########################
+    #### FILE ITERATION #######
+    ###########################
+
     for filename in all_files:
         file_path = os.path.join(folder_path_MODIS, filename)
-        n_runs += 1
 
+        # Printing progress
+        n_runs += 1
         if n_runs % 50 == 0:
             print(f"Processed {n_runs}/{n_total} files...")
 
-        # -----------------------------
-        # READ MODIS HDF4 FILE
-        # -----------------------------
+    
+        # Trying to read .hdf4 MODIS files
         try:
             hdf = SD(file_path, SDC.READ)
         except Exception as e:
@@ -105,7 +110,8 @@ with h5py.File(h5_path, "w") as hf:
             lon = hdf.select("Longitude")[:]
 
             cloud_phase = hdf.select("Cloud_Phase_Optical_Properties")[:].astype(int)
-            # water cloud = 2 → consistent with MODIS documentation
+
+            # water cloud = 2 
             cloud_flag = (cloud_phase == 2).astype(int)
 
         except Exception as e:
@@ -113,9 +119,7 @@ with h5py.File(h5_path, "w") as hf:
             print("   Reason:", e)
             continue
 
-        # ----------------------------------------------
-        # UPSAMPLE SZA (5 km → 1 km grid)
-        # ----------------------------------------------
+        # Upsampling SZA (5 km → 1 km grid)
         if sza.shape != radius.shape:
 
             factor_row = radius.shape[0] // sza.shape[0]
@@ -128,9 +132,7 @@ with h5py.File(h5_path, "w") as hf:
             sza = np.repeat(np.repeat(sza, factor_row, axis=0), factor_col, axis=1)
             sza = sza[:radius.shape[0], :radius.shape[1]]
 
-        # ----------------------------------------------
-        # GRID MATCHING
-        # ----------------------------------------------
+        # Grid matching
         min_rows = min(
             radius.shape[0], cot.shape[0], sza.shape[0],
             lat.shape[0], lon.shape[0], cloud_flag.shape[0]
@@ -146,22 +148,22 @@ with h5py.File(h5_path, "w") as hf:
         lat         = lat[:min_rows, :min_cols]
         lon         = lon[:min_rows, :min_cols]
         cloud_flag  = cloud_flag[:min_rows, :min_cols]
-        # ----------------------------------------------
-        # FILTER INVALID PIXELS
-        # ----------------------------------------------
+
+        # Filtering invalid pixels
         mask = np.zeros_like(radius, dtype=bool)
 
         mask |= (radius < 0) | np.isnan(radius)
         mask |= (cot < 0) | np.isnan(cot)
         mask |= (sza < 0) | np.isnan(sza)
 
+        # Masking data outside of region of interest (if not world_data)
         if not world_data:
             mask |= ~(
                 (lat >= lat_min) & (lat <= lat_max) &
                 (lon >= lon_min) & (lon <= lon_max)
             )
 
-        # remove longitude discontinuity
+        # Mask longitude discontinuity
         lon_diff = np.abs(np.diff(lon, axis=1))
         discontinuity = lon_diff > 180
         discontinuity = np.hstack([
@@ -172,9 +174,7 @@ with h5py.File(h5_path, "w") as hf:
 
         valid = ~mask & (cloud_flag == 1)
 
-        # ----------------------------------------------
-        # COMPUTE CLOUD COVERAGE (same method as OCI)
-        # ----------------------------------------------
+        # Compute cloud coverage
         lat_valid = lat[valid]
         lon_valid = lon[valid]
         cloud_valid = cloud_flag[valid]
@@ -194,9 +194,8 @@ with h5py.File(h5_path, "w") as hf:
         lon_idx = np.clip(np.digitize(lon_valid, lon_bins) - 1, 0, cloud_coverage_box.shape[1]-1)
 
         cloud_coverage_pixel = cloud_coverage_box[lat_idx, lon_idx].astype(np.float32)
-        # ----------------------------------------------
-        # SAVE VARIABLES
-        # ----------------------------------------------
+        
+        # Save variables
         for key, arr in zip(
             ["radius", "cot", "sza", "lat", "lon", "cloud_coverage"],
             [radius, cot, sza, lat, lon, cloud_coverage_pixel]
@@ -212,12 +211,10 @@ with h5py.File(h5_path, "w") as hf:
             dsets[key].resize(prev + len(valid_values), axis=0)
             dsets[key][prev:] = valid_values
 
-        # ----------------------------------------------
-        # SAVE DATE
-        # ----------------------------------------------
+
+        # Save date 
         try:
-            # You probably want to extract this from filename, adjust here
-            date_int = 20250807
+            date_int = 20250807 ### Change this to the date. Functionality to extract date from file name not implemented
             prev = dsets["date"].shape[0]
             dsets["date"].resize(prev + 1, axis=0)
             dsets["date"][prev] = date_int
