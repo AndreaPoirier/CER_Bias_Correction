@@ -16,16 +16,35 @@ from import_lib import *
 # Login ONCE at the beginning
 earthaccess.login(strategy="netrc")   
 
+# Days to download
 years = ["2024", "2025"]
 months = ["01","02","03","04","05","06","07","08","09","10","11","12"]
 days = ["01", "15"]
+
+# Save location
+base_folder_OCI = r"D:\Data\OCI"
+base_folder_HARP2 = r"D:\Data\HARP2"
+
+# Printing of parameters
+print("==== GETTING OCI DATA LOCALLY ====")
+description_of_script = """This script saves locally HARP2 and OCI .nc file from earth access for the 1st and 15th of each month from July 2024 to June 2025
+"""
+print(textwrap.fill(description_of_script, width=100))
+print("========================================================================")
+print(f"Saving OCI data to {base_folder_OCI}")
+print(f"Saving HARP2 data to {base_folder_HARP2}")
+print("========================================================================")
+
+# Giving option to user to run or not the code
+starting_code()
 
 #########################
 #### OCI DATA  ##########
 #########################
 
-base_folder = r"D:\Data\OCI"
+
 for year in years:
+    base_folder = base_folder_OCI
     for month in months:
 
         # Skip unwanted months for 2024
@@ -59,8 +78,8 @@ for year in years:
 
 print("\nDownloaded OCI data, now checking for corrupted files.\n")
 
-base_folder_OCI = r"D:\Data\OCI"
-removing_corrupted_files(base_folder_OCI)
+# Removing corrupted files 
+removing_corrupted_files(base_folder)
 
 print("\nDownloading HARP2 data ...\n ")    
 
@@ -68,8 +87,9 @@ print("\nDownloading HARP2 data ...\n ")
 #### HARP2 DATA  ##########
 ###########################
 
-base_folder = "D:\\Data\\HARP2"
+
 for year in years:
+    base_folder = base_folder_HARP2
     for month in months:
         if year == "2024":
             if month == "01" or month == "02" or month == "03" or month == "04" or month == "05" or month == "06":
@@ -103,5 +123,5 @@ for year in years:
 print("\nDownloaded HARP2 data, now checking for corrupted files.\n")
 
 
-base_folder_HARP2 = r"D:\Data\HARP2"
+# Removing corrupt files 
 removing_corrupted_files(base_folder_HARP2)
