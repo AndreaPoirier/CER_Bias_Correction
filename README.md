@@ -27,19 +27,19 @@ At this stage, the algorithm saves two .h5 files locally, one for OCI (called: O
 
 ### Step 3: Process data
 
-Following that, OCI_data.h5 and HARP2_data.h5 are opened and processed in `OCI.py`. This script applies the quantile mapping method to generate the refrence/true data. The structure of the code is the following: 1. Loads preprocessed OCI and HARP2 data from HDF5 files. 2. Identifies common observation days between the two instruments. 3. Processes data day-by-day and chunk-by-chunk to avoid memory issues. 4. For each OCI observation, finds spatially nearby HARP2 and OCI neighbors using KD-trees. 5. Applies lognormal fitting and quantile mapping to compute correction factors. 6. Buffers results in memory and periodically writes them to an output HDF5 file. 7. Produces a unified dataset containing spatial coordinates, cloud properties, and correction metrics.
+Following that, OCI_data.h5 and HARP2_data.h5 are opened and processed in `OCI.py`. This script applies the quantile mapping method to generate the refrence/true data. The structure of the code is the following: 1. Loads preprocessed OCI and HARP2 data from HDF5 files. 2. Identifies common observation days between the two instruments. 3. Processes data day-by-day and chunk-by-chunk to avoid memory issues. 4. For each OCI observation, finds spatially nearby HARP2 and OCI neighbors using KD-trees. 5. Applies lognormal fitting and quantile mapping to compute scaling factors. 6. Buffers results in memory and periodically writes them to an output HDF5 file. 7. Produces a unified dataset containing spatial coordinates, cloud properties, and scaling factors.
 
 Note: This is the longest-running step and can take several days or even weeks. Careful planning is required when executing this script.
 
-The output of this step is the file processed_data.h5.
+The output of this step is the file processed_data.h5. This file can be used either in `train_model.py` to be used as training data (Step 4A) or directly in  `apply_model.py` (Step 4B) if a model was already trained.
 
-### Step 4: Train machine learning model 
+### Step 4A: Train machine learning model 
 
-The processed data is then used in `train_model.py`, where the machine learning model is trained and tested.
+The processed data is then used in `train_model.py`, where the machine learning model is trained and tested. The output includes the model, and performance metrics and plots for test data. 
 
-### Apply model or perform SHAP analysis
+### Step 4B: Apply model or perform SHAP analysis
 
-Once the model is trained, there are two main options: Apply the model to unseen data using `apply_model.py` Perform a SHAP analysis using `shap_analysis.py`
+Once the model is trained, there are two main options: Apply the model to unseen data using `apply_model.py` or Perform a SHAP analysis using `shap_analysis.py`
 
 ![Alt text](structure.png)
 
