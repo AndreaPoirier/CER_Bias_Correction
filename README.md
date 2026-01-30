@@ -6,7 +6,7 @@ Accurate cloud effective radius (CER) retrievals are essential for understanding
 
 This algorithm was developed by Andrea Poirier during his internship (October 2025 – February 2026) in the Department of Earth Sciences at the Space Research Organisation Netherlands (SRON), under the supervision of Dr. Bastiaan van Diedenhoven.
 
-Contact: A.Poirier@sron.nl or poirier.andrea@outlook.com
+Contact: A.Poirier@sron.nl or poirier.andrea@outlook.com (prefered)
 
 ## User Manual for Algorithm 
 
@@ -154,5 +154,4 @@ save_every_n_blocks = 5
 - `pyproj`
 - `scipy`
 - `sklearn`
-- `torch`
 - `tqdm`
