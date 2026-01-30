@@ -17,20 +17,21 @@ The algorithm is organized in blocks, so scripts need to be run individually and
 
 ### Step 1: Download L2 .nc files
 
-The first step is the download of the L2 .nc file. For this, the user can make use of the script `download_from_earthaccess.py` which uses Earthaccess API. See publicly available documentation (url: https://earthaccess.readthedocs.io/en/latest/) on how to use this API. Another option is to download the data from NASA Search Data engine (url: https://search.earthdata.nasa.gov/). 
+The first step is the download of the L2 .nc file. For this, the user can make use of the script `download_from_earthaccess.py` which uses Earthaccess API. See publicly available documentation (url: https://earthaccess.readthedocs.io/en/latest/) on how to use this API. Another option is to download the data from NASA Search Data engine (url: https://search.earthdata.nasa.gov/). In this case the location/directory where the data is located needs to be specified in `user_input.py` (see below data storage location).
 
 ### Step 2: Fetch and pre-process data
-Once the data is downloaded, it must be fetched and pre-processed. This is done using the scripts `get_HARP2.py` and `get_OCI.py`. 
 
-At this stage, the algorithm saves two .h5 files locally, one for OCI and one for HARP2 data.
+Once the data is downloaded, it must be fetched and pre-processed. This step is done separately for the two instruments in the scripts `get_HARP2.py` and `get_OCI.py`. 
+
+At this stage, the algorithm saves two .h5 files locally, one for OCI (called: OCI_data.h5) and one for HARP2 (called: HARP2_data.h5).
 
 ### Step 3: Process data
 
-The OCI .h5 file is opened and processed using `OCI.py`. This script applies the quantile mapping method to generate training data.
+Following that, OCI_data.h5 and HARP2_data.h5 are opened and processed in `OCI.py`. This script applies the quantile mapping method to generate the refrence/true data. The structure of the code is the following: 1. Loads preprocessed OCI and HARP2 data from HDF5 files. 2. Identifies common observation days between the two instruments. 3. Processes data day-by-day and chunk-by-chunk to avoid memory issues. 4. For each OCI observation, finds spatially nearby HARP2 and OCI neighbors using KD-trees. 5. Applies lognormal fitting and quantile mapping to compute correction factors. 6. Buffers results in memory and periodically writes them to an output HDF5 file. 7. Produces a unified dataset containing spatial coordinates, cloud properties, and correction metrics.
 
 Note: This is the longest-running step and can take several days or even weeks. Careful planning is required when executing this script.
 
-The output of this step is processed_data.h5.
+The output of this step is the file processed_data.h5.
 
 ### Step 4: Train machine learning model 
 
